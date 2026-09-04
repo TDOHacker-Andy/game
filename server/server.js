@@ -25,7 +25,7 @@ const UNIT = {
   FIRE:{ name:'火力支援', short:'火', cost:1800, max:40, speed:223, range:2058, acc:.34, dmg:28, rof:.18, vision:1344, armor:20, pen:120, land:true, role:'遠程／壓制' },
   PATROL:{ name:'巡邏艇', short:'巡', cost:1200, max:24, speed:611, range:1512, acc:.44, dmg:18, rof:.42, vision:2520, armor:60, pen:90, naval:true, role:'近岸巡防' },
   FRIGATE:{ name:'護衛艦', short:'艦', cost:2600, max:40, speed:447, range:2520, acc:.52, dmg:34, rof:.22, vision:3150, armor:110, pen:160, naval:true, role:'海上火力' },
-  TRANSPORT:{ name:'運輸艦', short:'運', cost:2200, max:20, speed:353, range:525, acc:.08, dmg:2, rof:.08, vision:1890, armor:40, pen:0, naval:true, role:'跨海運輸（可搭載1隊陸軍）' }
+  TRANSPORT:{ name:'運輸艦', short:'運', cost:2200, max:20, speed:353, range:525, acc:.08, dmg:2, rof:.08, vision:1890, armor:40, pen:0, naval:true, role:'跨海運輸（可搭載3隊陸軍）' }
 };
 
 // Real-world-inspired coastlines: Taiwan's main island and Kyushu (southern Japan), simplified from
@@ -158,33 +158,44 @@ function buildPath(q,tx,ty){
   }
   pts.push({x:tx,y:ty,kind:'target'});return pts;
 }
+const TRANSPORT_CAPACITY = 3;
+function transportFree(t){return TRANSPORT_CAPACITY-t.cargo.length-t._dispatchFor.length;}
+function releaseDispatchSlot(t,qid){
+  const idx=t._dispatchFor.indexOf(qid);
+  if(idx>=0)t._dispatchFor.splice(idx,1);
+  if(!t.cargo.length&&!t._dispatchFor.length){t.status='待命';t.intent='MOVE';}
+}
 function boardTransport(s,t,q,tx,ty){
-  t.cargo=q.id;q.carrier=t.id;q.reserve=true;q.status='登艦待命';q.ferryTarget={x:tx,y:ty};q.path=[];q.awaitingFerry=null;
-  t._dispatchFor=null;
-  const shore=findShore(t.x,t.y,tx,ty);
-  t.target={x:shore.x,y:shore.y};t.path=buildPath(t,shore.x,shore.y);t.pathIndex=0;t.intent='FERRY';t.status='運輸中';
+  const firstAboard=t.cargo.length===0;
+  t.cargo.push(q.id);q.carrier=t.id;q.reserve=true;q.status='登艦待命';q.ferryTarget={x:tx,y:ty};q.path=[];q.awaitingFerry=null;
+  releaseDispatchSlot(t,q.id);
+  if(firstAboard){
+    const shore=findShore(t.x,t.y,tx,ty);
+    t.target={x:shore.x,y:shore.y};t.path=buildPath(t,shore.x,shore.y);t.pathIndex=0;t.intent='FERRY';
+  }
+  t.status=`運輸中(${t.cargo.length}/${TRANSPORT_CAPACITY})`;
   return true;
 }
 function cancelFerryWait(s,q){
   if(!q.awaitingFerry)return;
   const t=s.units.find(u=>u.id===q.awaitingFerry.transportId);
-  if(t&&t._dispatchFor===q.id){t._dispatchFor=null;if(!t.cargo){t.status='待命';t.intent='MOVE';}}
+  if(t)releaseDispatchSlot(t,q.id);
   q.awaitingFerry=null;q.reserve=false;
 }
 function fallbackToWalk(s,q){
   const t=q.awaitingFerry?s.units.find(u=>u.id===q.awaitingFerry.transportId):null;
-  if(t&&t._dispatchFor===q.id){t._dispatchFor=null;if(!t.cargo){t.status='待命';t.intent='MOVE';}}
+  if(t)releaseDispatchSlot(t,q.id);
   const ft=q.ferryTarget||q.awaitingFerry;
   q.reserve=false;q.awaitingFerry=null;q.status='改為陸路行軍';q.intent='MOVE';
   q.target=ft;q.path=buildPath(q,ft.x,ft.y);q.pathIndex=0;
 }
 function tryFerry(s,q,tx,ty){
-  const near=s.units.find(u=>u.active&&u.side===q.side&&u.kind==='TRANSPORT'&&!u.cargo&&!u.carrier&&!u._dispatchFor&&Math.hypot(u.x-q.x,u.y-q.y)<1400);
+  const near=s.units.find(u=>u.active&&u.side===q.side&&u.kind==='TRANSPORT'&&!u.carrier&&transportFree(u)>0&&Math.hypot(u.x-q.x,u.y-q.y)<1400);
   if(near)return boardTransport(s,near,q,tx,ty);
-  const candidates=s.units.filter(u=>u.active&&u.side===q.side&&u.kind==='TRANSPORT'&&!u.cargo&&!u.carrier&&!u._dispatchFor);
+  const candidates=s.units.filter(u=>u.active&&u.side===q.side&&u.kind==='TRANSPORT'&&!u.carrier&&u.cargo.length===0&&u._dispatchFor.length===0);
   if(!candidates.length)return false;
   const t=candidates.sort((a,b)=>Math.hypot(a.x-q.x,a.y-q.y)-Math.hypot(b.x-q.x,b.y-q.y))[0];
-  t._dispatchFor=q.id;t.status='前往接應中';t.intent='FERRY_PICKUP';
+  t._dispatchFor.push(q.id);t.status='前往接應中';t.intent='FERRY_PICKUP';
   const shore=findShore(t.x,t.y,q.x,q.y);
   t.target={x:shore.x,y:shore.y};t.path=buildPath(t,shore.x,shore.y);t.pathIndex=0;
   const landEdge=findLandEdge(q.x,q.y,shore.x,shore.y);
@@ -199,11 +210,11 @@ function updateFerryDispatch(s){
     const t=s.units.find(u=>u.id===q.awaitingFerry.transportId);
     if(!t||!t.active){fallbackToWalk(s,q);continue;}
     if(!q.path.length&&q.status==='前往岸邊等待接應')q.status='岸邊待命中';
-    if(!t.cargo&&!t.carrier&&Math.hypot(t.x-q.x,t.y-q.y)<1100){boardTransport(s,t,q,q.awaitingFerry.x,q.awaitingFerry.y);continue;}
+    if(t.cargo.length<TRANSPORT_CAPACITY&&Math.hypot(t.x-q.x,t.y-q.y)<1100){boardTransport(s,t,q,q.awaitingFerry.x,q.awaitingFerry.y);continue;}
     if(s.time-q.awaitingFerry.since>50)fallbackToWalk(s,q);
   }
 }
-function addUnit(s,side,kind,x,y,p){const u=UNIT[kind];s.units.push({id:nextUnit++,side,kind,x,y,heading:side===0?90:270,target:{x,y},path:[],pathIndex:0,personnel:p,maxPersonnel:p,ammo:100,morale:1,suppression:0,effectiveness:1,vision:u.vision,stance:'ATTACK',intent:'MOVE',reserve:false,carrier:null,cargo:null,ferryTarget:null,awaitingFerry:null,_dispatchFor:null,attackFacility:null,active:true,fireCd:0,lastDamage:0,status:'待命',kills:0});}
+function addUnit(s,side,kind,x,y,p){const u=UNIT[kind];s.units.push({id:nextUnit++,side,kind,x,y,heading:side===0?90:270,target:{x,y},path:[],pathIndex:0,personnel:p,maxPersonnel:p,ammo:100,morale:1,suppression:0,effectiveness:1,vision:u.vision,stance:'ATTACK',intent:'MOVE',reserve:false,carrier:null,cargo:[],ferryTarget:null,awaitingFerry:null,_dispatchFor:[],attackFacility:null,active:true,fireCd:0,lastDamage:0,status:'待命',kills:0});}
 // Composition is asymmetric but roughly value-balanced (see UNIT costs): Taiwan starts army-heavy
 // (~15,850 in land units, light navy), Kyushu starts navy-heavy (~15,200 in ships, light army) —
 // same starting budget, very different opening options for both sides.
@@ -292,16 +303,18 @@ function speedFactor(q){const t=terrainAt(q.x,q.y);const naval=UNIT[q.kind].nava
 function stepMove(s,q,dt){if(q.reserve)return;if(!q.path.length)return;const node=q.path[Math.min(q.pathIndex,q.path.length-1)];const dx=node.x-q.x,dy=node.y-q.y,d=Math.hypot(dx,dy);if(d<25){q.pathIndex++;if(q.pathIndex>=q.path.length){q.path=[];q.status=q.intent==='ATTACK'?'交戰位置':'就位';return;}return;}if(d>4)q.heading=Math.atan2(dx,-dy)*180/Math.PI;let sp=UNIT[q.kind].speed*speedFactor(q);if(q.stance==='ATTACK')sp*=1.04;if(q.stance==='DEFEND')sp*=.84;if(q.stance==='MOBILE')sp*=1.18;if(q.suppression>.62)sp*=.58;if(q.morale<.5)sp*=.8;q.x+=dx/d*Math.min(d,sp*dt);q.y+=dy/d*Math.min(d,sp*dt);}
 function updateFerries(s){
   for(const t of s.units){
-    if(!t.active||t.kind!=='TRANSPORT'||!t.cargo)continue;
-    const cargo=s.units.find(u=>u.id===t.cargo);
-    if(!cargo||!cargo.active){t.cargo=null;continue;}
-    cargo.x=t.x;cargo.y=t.y;
+    if(!t.active||t.kind!=='TRANSPORT'||!t.cargo.length)continue;
+    t.cargo=t.cargo.filter(cid=>{const cargo=s.units.find(u=>u.id===cid);return cargo&&cargo.active;});
+    for(const cid of t.cargo){const cargo=s.units.find(u=>u.id===cid);cargo.x=t.x;cargo.y=t.y;}
     if(!t.path.length){
-      const ft=cargo.ferryTarget||{x:cargo.x,y:cargo.y};
-      cargo.carrier=null;cargo.reserve=false;cargo.status='搶灘上岸';cargo.intent='MOVE';
-      cargo.target=ft;cargo.path=buildPath(cargo,ft.x,ft.y);cargo.pathIndex=0;
-      t.cargo=null;t.status='待命';t.intent='MOVE';
-      event(s,`${UNIT[cargo.kind].name} 登陸`,'ferry');
+      for(const cid of t.cargo){
+        const cargo=s.units.find(u=>u.id===cid);
+        const ft=cargo.ferryTarget||{x:cargo.x,y:cargo.y};
+        cargo.carrier=null;cargo.reserve=false;cargo.status='搶灘上岸';cargo.intent='MOVE';
+        cargo.target=ft;cargo.path=buildPath(cargo,ft.x,ft.y);cargo.pathIndex=0;
+        event(s,`${UNIT[cargo.kind].name} 登陸`,'ferry');
+      }
+      t.cargo=[];t.status='待命';t.intent='MOVE';
     }
   }
 }
@@ -309,7 +322,7 @@ function chooseTarget(s,a){let best=null,bd=Infinity;for(const b of s.units){if(
 function fire(s,a,b,dt){const ua=UNIT[a.kind],ub=UNIT[b.kind];a.fireCd=Math.max(0,a.fireCd-dt);if(a.fireCd>0||a.ammo<=0)return;a.fireCd=1/ua.rof;a.ammo=Math.max(0,a.ammo-.15);const hit=Math.random()<ua.acc*(1-a.suppression*.4);const fx={kind:hit?'hit':'miss',x1:a.x,y1:a.y,x2:b.x,y2:b.y,t:1.0,damage:0};s.fx.push(fx);if(!hit)return;let dmg=ua.dmg*(.75+.5*Math.random());if(ub.armor>0)dmg*=ua.pen>=ub.armor?.92:.18;if(b.stance==='DEFEND')dmg*=.8;dmg*=a.effectiveness;b.personnel=Math.max(0,b.personnel-dmg);b.lastDamage=dmg;b.suppression=clamp(b.suppression+(ua.dmg>20?.16:.07),0,1);b.morale=clamp(b.morale-(ua.dmg>20?.025:.012),.05,1);fx.damage=Math.round(dmg*10)/10;event(s,`${UNIT[a.kind].name} → ${UNIT[b.kind].name}｜命中 ${dmg.toFixed(1)}`,'combat');
   if(b.personnel<=0){
     b.active=false;a.kills++;s.losses[b.side]++;event(s,`${UNIT[b.kind].name} 被殲滅`,'combat');s.fx.push({kind:'death',x1:b.x,y1:b.y,x2:b.x,y2:b.y,t:1.2,damage:0});
-    if(b.kind==='TRANSPORT'&&b.cargo){const carried=s.units.find(u=>u.id===b.cargo);if(carried){carried.active=false;carried.personnel=0;s.losses[carried.side]++;event(s,`${UNIT[carried.kind].name} 隨運輸艦沉沒`,'combat');s.fx.push({kind:'death',x1:carried.x,y1:carried.y,x2:carried.x,y2:carried.y,t:1.2,damage:0});}}
+    if(b.kind==='TRANSPORT'&&b.cargo.length){for(const cid of b.cargo){const carried=s.units.find(u=>u.id===cid);if(carried){carried.active=false;carried.personnel=0;s.losses[carried.side]++;event(s,`${UNIT[carried.kind].name} 隨運輸艦沉沒`,'combat');s.fx.push({kind:'death',x1:carried.x,y1:carried.y,x2:carried.x,y2:carried.y,t:1.2,damage:0});}}}
   }
 }
 function fireFacility(s,a,f,dt){
