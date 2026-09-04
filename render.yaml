@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: cross-strait-battle
+    name: game
     runtime: node
     plan: free
     buildCommand: npm install
