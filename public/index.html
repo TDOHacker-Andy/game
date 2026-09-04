@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TACTICAL BORDER · 跨海戰役 v29</title>
+<style>
+:root{--bg:#071015;--panel:#101c21e8;--line:#38525e;--text:#eef4f6;--muted:#9bb0b9;--blue:#4ea8ff;--red:#ff5e62;--gold:#e4bd62;--green:#5fd08c}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050b0f;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif}
+button{font:inherit;color:inherit;cursor:pointer;border:1px solid #3b5662;background:#14242b;border-radius:12px;padding:9px 13px;transition:.15s transform,.15s background,.15s border-color}.hidden{display:none!important}
+#app{position:fixed;inset:0;background:#071015}
+#battle{position:absolute;inset:0;overflow:hidden;background:linear-gradient(#0a151a,#081116)}
+#map{position:absolute;inset:0;width:100%;height:100%;touch-action:none;user-select:none;cursor:crosshair}
+.hudTop{position:absolute;top:14px;left:14px;right:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none;z-index:20}.hudBlock{background:#071115db;border:1px solid #314a56;box-shadow:0 10px 30px #0008;border-radius:14px;padding:10px 14px;backdrop-filter:blur(10px);pointer-events:auto}.title{font-weight:800;letter-spacing:.04em}.tiny{font-size:12px;color:var(--muted)}.score{min-width:340px;text-align:center}.score .bar{height:9px;background:#1d2a31;border-radius:999px;overflow:hidden;margin-top:6px}.score .fill{height:100%;width:50%;background:linear-gradient(90deg,var(--blue) 0 50%,var(--red) 50%)}
+#battle .controls{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;background:#081217ec;border:1px solid #38525e;padding:10px 12px;border-radius:16px;box-shadow:0 12px 36px #000a;z-index:20}.controls button{min-width:84px;background:#122128}.controls button.active{border-color:var(--gold);box-shadow:0 0 0 1px #e4bd6233 inset;background:#1a2b2c}.controls button.attack{border-color:#9f454a}
+#selected{position:absolute;left:16px;bottom:16px;width:min(360px,calc(100vw - 32px));background:#071115ed;border:1px solid #415965;border-radius:16px;padding:13px 15px;z-index:21;box-shadow:0 12px 36px #000b;backdrop-filter:blur(10px)}.selectedTop{display:flex;align-items:center;gap:10px}.badge{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:#13232a;border:1px solid #41606d;font-weight:900}.hp{height:10px;background:#1c2b30;border-radius:99px;overflow:hidden;margin-top:8px}.hp>i{display:block;height:100%;background:linear-gradient(90deg,#46c988,#d5d85f,#ff5b5f)}.statLine{display:flex;justify-content:space-between;margin-top:6px;color:#b3c4ca;font-size:12px}
+#statusToast{position:absolute;top:82px;left:50%;transform:translateX(-50%);padding:8px 13px;background:#091319dd;border:1px solid #405b67;border-radius:999px;font-size:13px;z-index:22;opacity:0;transition:.2s opacity;pointer-events:none}.show{opacity:1!important}
+#zoom{position:absolute;right:16px;bottom:16px;display:flex;gap:7px;z-index:22}.zoomBtn{width:48px;height:48px;font-size:22px;padding:0;display:grid;place-items:center;background:#0a151aee}.zoomBtn.fit{width:74px;font-size:13px}
+#minimap{position:absolute;right:16px;bottom:82px;width:230px;height:142px;background:#050b0fe0;border:1px solid #3b5662;border-radius:12px;overflow:hidden;z-index:23;box-shadow:0 10px 28px #000a;cursor:pointer}#minimap svg{width:100%;height:100%;display:block}#minimap .miniLabel{position:absolute;top:4px;left:8px;font-size:10px;color:var(--muted);pointer-events:none;letter-spacing:.05em}
+#prep{position:absolute;inset:0;z-index:30;background:linear-gradient(180deg,#06101522,#06101544);pointer-events:none}.prepPanel{position:absolute;inset:18px;display:grid;grid-template-columns:360px minmax(0,1fr) 360px;gap:12px;pointer-events:none}.prepLeft,.prepCenter,.prepRight{background:linear-gradient(180deg,#0b171ce8,#071116e8);border:1px solid #3b5662;border-radius:18px;box-shadow:0 18px 50px #0008;overflow:hidden}.prepLeft,.prepRight{pointer-events:auto}.prepLeft{padding:18px;overflow:auto}.prepCenter{display:flex;flex-direction:column;justify-content:space-between;padding:18px}.prepRight{padding:18px;display:flex;flex-direction:column;justify-content:space-between}.prepTitle{font-size:27px;font-weight:900}.prepSub{color:var(--muted);margin-top:5px}.budget{font-size:24px;font-weight:900;color:var(--gold);margin:16px 0}.buyGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.buy{min-height:92px;text-align:left;padding:12px;position:relative;background:#102028}.buy strong{display:block;font-size:16px}.buy span{display:block;color:#a8bbc2;font-size:12px;margin-top:5px;max-width:88%}.buy em{position:absolute;right:10px;bottom:10px;color:var(--gold);font-style:normal;font-weight:800}.roster{display:grid;gap:8px;max-height:58vh;overflow:auto}.row{display:flex;align-items:center;justify-content:space-between;border:1px solid #263d46;background:#0d1b21;border-radius:10px;padding:10px 12px}.row small{color:#9db0b7}.readyBtn{width:100%;padding:14px;font-size:18px;font-weight:900;background:#17384d;border-color:#5b8daa}.readyBtn:disabled{opacity:.45;cursor:not-allowed}.note{font-size:12px;color:#8fa4ad;line-height:1.65}.prepCenterHint{align-self:flex-start;background:#071115d9;border:1px solid #38525e;border-radius:12px;padding:10px 13px;font-weight:700}.deployTip{color:#b8c7cc;font-size:12px;line-height:1.5}.removeBtn{margin-left:8px}
+.prepCountdown{display:inline-block;margin-top:10px;padding:6px 14px;border-radius:999px;background:#132a33;border:1px solid #3d6472;color:var(--gold);font-weight:900;font-size:14px}
+#resultScreen{position:absolute;inset:0;z-index:40;background:#050b0fe6;display:flex;align-items:center;justify-content:center}
+.resultPanel{background:linear-gradient(180deg,#0b171ce8,#071116e8);border:1px solid #3b5662;border-radius:20px;box-shadow:0 24px 60px #000a;padding:36px 48px;text-align:center;min-width:340px}
+.resultTitle{font-size:42px;font-weight:900;letter-spacing:.03em}
+.resultTitle.win{color:var(--blue)}.resultTitle.lose{color:var(--red)}
+.resultReason{color:var(--muted);margin-top:8px;font-size:14px}
+.resultStats{margin:22px 0;display:grid;gap:8px;text-align:left;background:#0d1b21;border:1px solid #263d46;border-radius:12px;padding:14px 18px;min-width:260px}
+.resultStats .row{display:flex;justify-content:space-between;font-size:13px;color:#cdd9dd}
+#lobby{position:absolute;inset:0;z-index:50;background:#050b0ff2;display:flex;align-items:center;justify-content:center}
+.lobbyPanel{background:linear-gradient(180deg,#0b171ce8,#071116e8);border:1px solid #3b5662;border-radius:22px;box-shadow:0 24px 60px #000a;padding:40px 46px;text-align:center;min-width:360px}
+.lobbyTitle{font-size:30px;font-weight:900;letter-spacing:.04em}
+.lobbySub{color:var(--muted);margin-top:6px;font-size:14px;margin-bottom:26px}
+.lobbyBtn{width:100%;padding:15px;font-size:16px;font-weight:900;background:#17384d;border-color:#5b8daa;margin-bottom:12px}
+.lobbyDivider{color:var(--muted);font-size:12px;margin:14px 0}
+.lobbyJoinRow{display:flex;gap:8px}
+.lobbyJoinRow input{flex:1;background:#0d1b21;border:1px solid #3b5662;border-radius:12px;color:var(--text);padding:12px 14px;font-size:16px;text-align:center;letter-spacing:.1em;min-width:0}
+.lobbyJoinRow button{background:#132a33;border-color:#3d6472;font-weight:900}
+.lobbyCode{font-size:38px;font-weight:900;letter-spacing:.12em;color:var(--gold);margin:14px 0;padding:14px;background:#0d1b21;border:1px solid #3d6472;border-radius:14px;cursor:pointer}
+.lobbyWaitNote{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:18px}
+@media(max-width:900px){.prepPanel{grid-template-columns:1fr;height:92vh}.prepRight{border-left:0;border-top:1px solid #29404a}.score{min-width:0}.score .tiny{display:none}.hudTop .hideSmall{display:none}.controls button{min-width:62px;padding:8px 9px}}
+</style>
+</head>
+<body>
+<div id="app">
+<section id="battle">
+<svg id="map" viewBox="0 0 22000 13200" preserveAspectRatio="xMidYMid meet" aria-label="台日跨海戰區地圖"></svg>
+<div class="hudTop">
+  <div class="hudBlock"><div class="title">戰區：台日跨海戰役</div><div class="tiny" id="mission">目標：奪取制海權，跨海登陸並摧毀敵方主城</div></div>
+  <div class="hudBlock score"><div><b id="time">00:00</b>　<span id="weather">晴朗・白天</span></div><div class="bar"><div id="frontbar" class="fill"></div></div><div class="tiny" id="lossline">傷亡：藍軍 0　紅軍 0</div></div>
+  <div class="hudBlock hideSmall"><div class="title" id="mode">單人・AI 對手</div><div class="tiny" id="notice">觸控板拖曳地圖・點擊下令</div></div>
+</div>
+<div id="statusToast"></div>
+<div id="selected" class="hidden"></div>
+<div id="minimap"><span class="miniLabel">戰區全覽・點擊跳轉</span><svg id="miniSvg" viewBox="0 0 22000 13200" preserveAspectRatio="xMidYMid meet"></svg></div>
+<div id="zoom"><button class="zoomBtn fit" id="fit">全圖</button><button class="zoomBtn" id="zoomOut">−</button><button class="zoomBtn" id="zoomIn">＋</button></div>
+<div id="controls" class="controls hidden">
+  <button data-cmd="MOVE">移動</button><button data-cmd="ATTACK" class="attack">攻擊</button><button data-cmd="STOP">停止</button><button data-cmd="DEFEND">防守</button><button data-cmd="CAPTURE">佔領</button><button data-cmd="MOBILE">機動</button>
+</div>
+<div id="prep" class="hidden">
+  <div class="prepPanel">
+    <div class="prepLeft">
+      <div class="prepTitle">戰前建軍</div><div class="prepSub">先買兵，再直接在地圖上部署。開戰後本面板完全消失。</div>
+      <div class="budget">軍費 <span id="budget">20,000</span></div>
+      <div class="prepCountdown">開戰倒數 <span id="prepTime">--</span></div>
+      <div class="buyGrid" id="buyGrid"></div>
+      <div style="margin-top:18px;font-size:14px;font-weight:900">我方部隊</div>
+      <div class="roster" id="roster" style="margin-top:9px"></div>
+    </div>
+    <div class="prepCenter">
+      <div class="prepCenterHint">拖曳地圖可移動視角・點擊部隊選取・拖曳部隊可部署</div>
+      <div class="deployTip">台灣（藍軍）與日本（紅軍）分處海峽兩端，中間隔著大海與一座中繼島。陸軍只能部署在己方本島；海軍需部署在海上。開戰後，陸軍要跨海攻打對方本島，必須先搭乘運輸艦——運輸艦被擊沉，搭載的部隊也會全滅，制海權因此決定登陸成敗。點擊「全圖」可以快速查看整個戰區。</div>
+    </div>
+    <div class="prepRight">
+      <div><div style="font-size:18px;font-weight:900">開戰前檢查</div>
+        <div class="note" style="margin-top:12px">① 已購買部隊會立即出現在地圖。<br>② 點擊或拖曳部署到自己的本島／海域。<br>③ 不需要任何編組面板；進入戰鬥後完全自己操控。<br>④ 戰鬥開始後建軍 UI 消失，只留下地圖與必要 HUD。<br>⑤ 觸控板：單指拖曳平移；點己方部隊選取；點地面下令；Shift＋拖曳框選。<br>⑥ 陸軍下令跨海移動時會自動徵用附近待命的運輸艦。</div>
+      </div>
+      <button class="readyBtn" id="ready">✓ 準備開始</button>
+    </div>
+  </div>
+</div>
+<div id="resultScreen" class="hidden">
+  <div class="resultPanel">
+    <div class="resultTitle" id="resultTitle">勝利</div>
+    <div class="resultReason" id="resultReason"></div>
+    <div class="resultStats" id="resultStats"></div>
+    <button class="readyBtn" id="rematchBtn">↻ 再戰一場</button>
+  </div>
+</div>
+<div id="lobby">
+  <div class="lobbyPanel">
+    <div id="lobbyChoice">
+      <div class="lobbyTitle">TACTICAL BORDER</div>
+      <div class="lobbySub">台日跨海戰役</div>
+      <button class="lobbyBtn" id="lobbyCreate">⚔ 建立房間（單人／邀請朋友）</button>
+      <div class="lobbyDivider">已經有朋友的房號？</div>
+      <div class="lobbyJoinRow"><input id="joinCodeInput" placeholder="輸入房號" maxlength="4" inputmode="numeric"><button id="lobbyJoin">加入</button></div>
+    </div>
+    <div id="lobbyHosting" class="hidden">
+      <div class="lobbyTitle">房間已建立</div>
+      <div class="lobbySub">把房號傳給朋友，他輸入房號即可加入</div>
+      <div class="lobbyCode" id="roomCodeDisplay" title="點擊複製">----</div>
+      <div class="lobbyWaitNote" id="lobbyWaitNote">等待朋友加入中…（朋友必須在你按下「準備開始」之前加入）</div>
+      <button class="lobbyBtn" id="lobbySkipWait">不等了，直接開打（單人 AI 對手）</button>
+    </div>
+  </div>
+</div>
+</section>
+</div>
+<script>
+const WORLD={w:22000,h:13200};
+const UNIT={
+ INF:{name:'突擊兵',short:'突',cost:700,max:180,role:'主力／佔領'},TANK:{name:'裝甲部隊',short:'甲',cost:2500,max:60,role:'肉盾／突破'},RECON:{name:'偵察兵',short:'偵',cost:950,max:90,role:'4格視野／情報'},SF:{name:'特戰部隊',short:'特',cost:1550,max:90,role:'高速／側翼'},AT:{name:'反裝甲部隊',short:'反',cost:1050,max:75,role:'伏擊／反裝甲'},FIRE:{name:'火力支援',short:'火',cost:1800,max:40,role:'遠程／壓制'},PATROL:{name:'巡邏艇',short:'巡',cost:1200,max:24,role:'近岸巡防'},FRIGATE:{name:'護衛艦',short:'艦',cost:2600,max:40,role:'海上火力'},TRANSPORT:{name:'運輸艦',short:'運',cost:2200,max:20,role:'跨海運輸（可搭載1隊陸軍）'}
+};
+const TAIWAN_POLY=[[3000,6200],[4600,6500],[5800,7500],[6500,9000],[6700,10600],[6100,12100],[4900,13000],[3500,13100],[2300,12300],[1600,10900],[1400,9200],[1800,7600],[2400,6700]];
+const JAPAN_POLY=[[15400,900],[17400,500],[19400,1000],[20800,2300],[21400,4000],[20900,5700],[19600,7000],[17700,7700],[15900,7200],[14700,5900],[14300,4100],[14500,2300]];
+const MID_POLY=[[10600,6800],[11500,6600],[12100,7200],[11900,7900],[11000,8100],[10400,7500]];
+const PASSES=[
+ {id:'passTW',name:'台灣中央山口',x:5300,y:9000,r:420},
+ {id:'passJP',name:'日本中央山口',x:17300,y:4600,r:420}
+];
+let state={phase:'LOBBY',units:[],facilities:[],events:[],budget:[20000,20000],losses:[0,0],time:0,front:11000};let side=0,ws=null,selected=null,commandMode='MOVE';let camera={x:WORLD.w/2,y:WORLD.h/2,w:WORLD.w,h:WORLD.h};let drag=null;let shiftDrag=null;let toastTimer=null;
+const svg=document.getElementById('map');
+const miniSvg=document.getElementById('miniSvg');
+const ns='http://www.w3.org/2000/svg';
+function E(tag,attrs={},text=''){const el=document.createElementNS(ns,tag);for(const[k,v]of Object.entries(attrs))el.setAttribute(k,v);if(text)el.textContent=text;return el;}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function esc(s){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const BOARD_W=WORLD.w;
+function toast(t){const e=document.getElementById('statusToast');e.textContent=t;e.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.classList.remove('show'),1500)}
+function fitAll(){const r=svg.getBoundingClientRect();const ar=Math.max(.3,r.width/Math.max(1,r.height));let w=BOARD_W||WORLD.w;let h=w/ar;if(h>WORLD.h){h=WORLD.h;w=h*ar;}w=Math.min(WORLD.w,Math.max(1,w));h=Math.min(WORLD.h,Math.max(1,h));camera={x:WORLD.w/2,y:WORLD.h/2,w,h};renderCamera();}
+function renderCamera(){svg.setAttribute('viewBox',`${camera.x-camera.w/2} ${camera.y-camera.h/2} ${camera.w} ${camera.h}`)}
+function zoomAt(f){const nw=Math.max(900,Math.min(WORLD.w,camera.w*f)),nh=Math.max(540,Math.min(WORLD.h,camera.h*f));const cx=camera.x,cy=camera.y;camera.w=nw;camera.h=nh;camera.x=clamp(cx,nh*0+nw/2,WORLD.w-nw/2);camera.y=clamp(cy,nh/2,WORLD.h-nh/2);renderCamera()}
+function pointerWorld(e){const r=svg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;return{x:(camera.x-camera.w/2)+px*camera.w,y:(camera.y-camera.h/2)+py*camera.h}}
+function faction(side){return side===0?'#3fa5ff':'#ff5e62'}
+function pointInPoly(x,y,p){let inside=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const xi=p[i][0],yi=p[i][1],xj=p[j][0],yj=p[j][1];const hit=((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi+1e-9)+xi);if(hit)inside=!inside;}return inside;}
+function pointInMapLand(x,y){return pointInPoly(x,y,TAIWAN_POLY)||pointInPoly(x,y,JAPAN_POLY)||pointInPoly(x,y,MID_POLY);}
+function polyPath(pts){return pts.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ')+' Z';}
+function buildMap(){
+  svg.innerHTML='';
+  const defs=E('defs');
+  defs.append(E('linearGradient',{id:'seaGrad',x1:'0',y1:'0',x2:'0',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#0a2b38'}),E('stop',{offset:'1','stop-color':'#061922'}));
+  defs.append(E('linearGradient',{id:'landGradTW',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#5d8a5f'}),E('stop',{offset:'1','stop-color':'#2f4a37'}));
+  defs.append(E('linearGradient',{id:'landGradJP',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#7a5c48'}),E('stop',{offset:'1','stop-color':'#3c2e26'}));
+  defs.append(E('linearGradient',{id:'landGradMID',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#8a7a52'}),E('stop',{offset:'1','stop-color':'#5c4f34'}));
+  defs.append(E('pattern',{id:'grid',width:'240',height:'240',patternUnits:'userSpaceOnUse'}));defs.lastChild.append(E('path',{d:'M240 0H0V240',fill:'none',stroke:'#ffffff',opacity:'.025','stroke-width':'2'}));
+  defs.append(E('filter',{id:'soft',x:'-30%',y:'-30%',width:'160%',height:'160%'}));defs.lastChild.append(E('feDropShadow',{dx:'0',dy:'8',stdDeviation:'10','flood-color':'#000','flood-opacity':'.45'}));
+  svg.append(defs);
+  svg.append(E('rect',{width:WORLD.w,height:WORLD.h,fill:'url(#seaGrad)'}));
+  // Ocean current / wave texture across the strait, purely decorative.
+  const waves=['M7500 8000 Q9000 7700 10500 8100 T13500 7900','M7300 9500 Q9200 9200 11000 9600 T14000 9300','M8000 6600 Q9600 6400 11200 6700 T14200 6500'];
+  waves.forEach(d=>svg.append(E('path',{d,fill:'none',stroke:'#7fb8c9','stroke-width':'20',opacity:'.12'})));
+  // Two fictional home islands (Taiwan-inspired SW, Japan-inspired NE) plus a small contested relay island.
+  [[TAIWAN_POLY,'landGradTW'],[JAPAN_POLY,'landGradJP'],[MID_POLY,'landGradMID']].forEach(([poly,grad])=>{
+    const d=polyPath(poly);
+    svg.append(E('path',{d,fill:`url(#${grad})`,stroke:'#a9c0b8','stroke-opacity':'.4','stroke-width':'26',filter:'url(#soft)'}));
+    svg.append(E('path',{d,fill:'url(#grid)'}));
+    svg.append(E('path',{d,fill:'none',stroke:'#d4b97c','stroke-width':'50',opacity:'.35'}));
+  });
+  // Mountain spines, one per home island.
+  const ridges=[
+    ['M4200 6800 L4900 7900 L4500 9000 L5300 10000 L4900 11100 L5500 12200','#687e78'],
+    ['M17000 1800 L18000 2600 L17500 3600 L18400 4500 L17900 5500 L18600 6600','#7a6a5c']
+  ];
+  ridges.forEach(([d,c])=>{svg.append(E('path',{d,fill:'none',stroke:c,'stroke-width':'340','stroke-linecap':'round','stroke-linejoin':'round',opacity:.42}));svg.append(E('path',{d,fill:'none',stroke:'#2b3630','stroke-width':'80',opacity:.75}));});
+  // Forest clusters, scattered across both islands.
+  const trees=[];for(let y=600;y<13000;y+=560){for(let x=1200;x<21500;x+=640){if(((x/100|0)+(y/100|0))%5!==0){const px=x+Math.sin(y+x)*120,py=y+Math.cos(x)*110;trees.push([px,py,34+((x+y)%3)*8]);}}}
+  trees.forEach(([x,y,s])=>{if(pointInMapLand(x,y)){const g=E('g',{opacity:'.9'});g.append(E('circle',{cx:x,cy:y,r:s+12,fill:'#1c3329',opacity:'.28'}));g.append(E('polygon',{points:`${x},${y-s*1.9} ${x-s},${y+s*.7} ${x+s},${y+s*.7}`,fill:'#2a5a3f',stroke:'#163526','stroke-width':'9'}));g.append(E('polygon',{points:`${x},${y-s*.8} ${x-s*.65},${y+s*1.1} ${x+s*.65},${y+s*1.1}`,fill:'#36704c',opacity:'.9'}));svg.append(g);}});
+  // Coastal roads linking each side's facilities.
+  const roads=[
+    [[6400,9200],[5400,9700],[4700,10300],[4200,10900],[3900,11500],[3500,11900],[3200,12300]],
+    [[14900,5200],[16100,5100],[17300,5000],[17900,4400],[18500,3800],[19100,3000],[19700,2200]]
+  ];
+  roads.forEach(p=>{const d=p.map((a,i)=>(i?'L':'M')+a[0]+' '+a[1]).join(' ');svg.append(E('path',{d,fill:'none',stroke:'#1b241f','stroke-width':'150',opacity:'.55','stroke-linecap':'round'}));svg.append(E('path',{d,fill:'none',stroke:'#c0ab7c','stroke-width':'46',opacity:'.85','stroke-linecap':'round','stroke-dasharray':'120 18'}));});
+  PASSES.forEach(p=>drawPass(p));
+  drawLabels();
+  buildMinimap();
+}
+function buildMinimap(){
+  miniSvg.innerHTML='';
+  miniSvg.append(E('rect',{width:WORLD.w,height:WORLD.h,fill:'#0a1f28'}));
+  miniSvg.append(E('path',{d:polyPath(TAIWAN_POLY),fill:'#4c7550'}));
+  miniSvg.append(E('path',{d:polyPath(JAPAN_POLY),fill:'#6b5040'}));
+  miniSvg.append(E('path',{d:polyPath(MID_POLY),fill:'#8a7a52'}));
+}
+function drawMinimapDynamic(){
+  const old=miniSvg.querySelector('#miniDyn');if(old)old.remove();
+  const g=E('g',{id:'miniDyn'});
+  for(const f of state.facilities||[]){const c=f.control===0?'#3fa5ff':f.control===1?'#ff5e62':'#d9bd6e';g.append(E('circle',{cx:f.x,cy:f.y,r:200,fill:c,opacity:'.95'}));}
+  for(const q of state.units||[]){if(!q.active||q.carrier)continue;if(q.side!==side&&!knownEnemy(q))continue;const c=q.side===0?'#45a8ff':'#ff6064';g.append(E('circle',{cx:q.x,cy:q.y,r:130,fill:c}));}
+  const vx=camera.x-camera.w/2,vy=camera.y-camera.h/2;
+  g.append(E('rect',{x:vx,y:vy,width:camera.w,height:camera.h,fill:'none',stroke:'#f5dc79','stroke-width':'80'}));
+  miniSvg.append(g);
+}
+document.getElementById('minimap').addEventListener('click',e=>{
+  const r=miniSvg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;
+  camera.x=clamp(px*WORLD.w,camera.w/2,WORLD.w-camera.w/2);camera.y=clamp(py*WORLD.h,camera.h/2,WORLD.h-camera.h/2);renderCamera();
+});
+function drawPass(p){const g=E('g');g.append(E('path',{d:`M${p.x-300} ${p.y+260} Q${p.x} ${p.y-260} ${p.x+300} ${p.y+260}`,fill:'#8b7662',stroke:'#4e3f35','stroke-width':'45'}));g.append(E('path',{d:`M${p.x-220} ${p.y+220} Q${p.x} ${p.y-170} ${p.x+220} ${p.y+220}`,fill:'none',stroke:'#d9c58a','stroke-width':'70'}));g.append(E('text',{x:p.x,y:p.y-300,'text-anchor':'middle',fill:'#f0d780','font-size':'76','font-weight':'800'},p.name));svg.append(g)}
+function drawFacility(layer,f){const c=f.control===0?'#3fa5ff':f.control===1?'#ff5e62':'#d9bd6e';const g=E('g',{filter:'url(#soft)'});const rad=f.type==='HQ'?260:190;const cap0=f.capture?.[0]||0,cap1=f.capture?.[1]||0,cap=Math.max(cap0,cap1);if(cap>0&&cap<100){const cc=cap0>cap1?'#3fa5ff':'#ff5e62';const ringR=rad+30,circ=2*Math.PI*ringR;g.append(E('circle',{cx:f.x,cy:f.y,r:ringR,fill:'none',stroke:'#0b1519','stroke-width':'20',opacity:'.5'}));g.append(E('circle',{cx:f.x,cy:f.y,r:ringR,fill:'none',stroke:cc,'stroke-width':'20','stroke-dasharray':`${circ*cap/100} ${circ}`,'stroke-linecap':'round',transform:`rotate(-90 ${f.x} ${f.y})`}));g.append(E('text',{x:f.x,y:f.y-rad-46,'text-anchor':'middle',fill:cc,'font-size':'68','font-weight':'900'},`攻佔中 ${Math.round(cap)}%`));}g.append(E('circle',{cx:f.x,cy:f.y,r:rad,fill:'#071015',opacity:'.7',stroke:c,'stroke-width':'34'}));if(f.type==='HQ'||f.type==='FORT'){g.append(E('path',{d:`M${f.x-150} ${f.y+130} L${f.x-120} ${f.y-70} L${f.x-70} ${f.y-150} L${f.x} ${f.y-80} L${f.x+70} ${f.y-150} L${f.x+120} ${f.y-70} L${f.x+150} ${f.y+130} Z`,fill:c,opacity:'.75',stroke:'#0b1519','stroke-width':'26'}));g.append(E('rect',{x:f.x-72,y:f.y+20,width:144,height:110,fill:'#101a1d',stroke:'#e8ddbf','stroke-width':'16'}));}else if(f.type==='PORT'){g.append(E('path',{d:`M${f.x-160} ${f.y+90} H${f.x+120} L${f.x+170} ${f.y+10} H${f.x-120} Z`,fill:c,opacity:'.75'}));g.append(E('line',{x1:f.x+50,y1:f.y+10,x2:f.x+50,y2:f.y-110,stroke:'#e8ddbf','stroke-width':'18'}));g.append(E('path',{d:`M${f.x+50} ${f.y-110} L${f.x+170} ${f.y-60} L${f.x+50} ${f.y-20} Z`,fill:c}));}else if(f.type==='DEPOT'){g.append(E('rect',{x:f.x-150,y:f.y-90,width:300,height:180,rx:18,fill:c,opacity:'.82',stroke:'#e8ddbf','stroke-width':'16'}));g.append(E('rect',{x:f.x-105,y:f.y-45,width:210,height:90,fill:'#0c171c'}));}else if(f.type==='AIR'){g.append(E('rect',{x:f.x-180,y:f.y-100,width:360,height:200,rx:22,fill:c,opacity:'.75'}));g.append(E('path',{d:`M${f.x-130} ${f.y} H${f.x+130} M${f.x} ${f.y-90} V${f.y+90}`,stroke:'#f1e4c6','stroke-width':'15'}));}else{g.append(E('rect',{x:f.x-140,y:f.y-100,width:280,height:200,rx:20,fill:c,opacity:'.72'}));}g.append(E('text',{x:f.x,y:f.y+330,'text-anchor':'middle',fill:'#eff5f7','font-size':'70','font-weight':'800'},f.name));layer.append(g)}
+function drawFacilities(){const old=svg.querySelector('#facLayer');if(old)old.remove();const g=E('g',{id:'facLayer'});for(const f of state.facilities||[])drawFacility(g,f);svg.append(g);}
+function drawAtmosphere(){
+  const old=svg.querySelector('#atmosLayer');if(old)old.remove();
+  const g=E('g',{id:'atmosLayer'});
+  const dp=state.dayPhase;
+  const tint=dp==='NIGHT'?{c:'#0a1030',o:.44}:dp==='DUSK'?{c:'#3a2440',o:.24}:dp==='DAWN'?{c:'#2a3555',o:.2}:null;
+  if(tint)g.append(E('rect',{width:WORLD.w,height:WORLD.h,fill:tint.c,opacity:tint.o}));
+  if(state.weather==='RAIN'){
+    g.append(E('rect',{width:WORLD.w,height:WORLD.h,fill:'#1c2d33',opacity:.16}));
+    const shift=((Date.now()/26)|0);
+    for(let i=0;i<50;i++){const rx=(i*937+shift*3)%(WORLD.w+400)-200,ry=(i*613+shift*7)%(WORLD.h+400)-200;g.append(E('line',{x1:rx,y1:ry,x2:rx-110,y2:ry+400,stroke:'#bcd6e0','stroke-width':'9',opacity:'.22'}));}
+  }
+  svg.append(g);
+}
+function drawLabels(){const labels=[['台灣',4200,9800,140],['日本',17800,4200,140],['中繼島',11200,7700,70],['台日海峽',9200,5600,90]];labels.forEach(l=>svg.append(E('text',{x:l[1],y:l[2],fill:'#eff5f7','fill-opacity':'.22','font-size':l[3],'font-weight':'900','text-anchor':'middle','letter-spacing':'20'},l[0])))}
+function drawUnits(){const old=svg.querySelector('#unitsLayer');if(old)old.remove();const g=E('g',{id:'unitsLayer'});for(const q of state.units||[]){if(!q.active||q.carrier)continue;if(q.side!==side&&!knownEnemy(q))continue;drawUnit(g,q);}svg.append(g);}
+function knownEnemy(q){const watchers=(state.units||[]).filter(a=>a.active&&a.side===side);return watchers.some(a=>Math.hypot(a.x-q.x,a.y-q.y)<=a.vision*((state.dayPhase==='NIGHT')?.72:1));}
+function drawUnit(g,q){const c=q.side===0?'#45a8ff':'#ff6064';const sel=selected===q.id;const unit=UNIT[q.kind];const gg=E('g',{transform:`translate(${q.x} ${q.y})`});if(sel)gg.append(E('circle',{r:130,fill:'none',stroke:'#f5dc79','stroke-width':'30'}));if(unit.naval){gg.append(E('path',{d:'M-130 40 L-90 -25 L90 -25 L130 40 L70 70 L-70 70 Z',fill:c,stroke:'#0b1519','stroke-width':'18'}));gg.append(E('rect',{x:-30,y:-65,width:60,height:40,fill:'#d5d9db','stroke':'#0b1519','stroke-width':'12'}));if(q.kind==='TRANSPORT'&&q.cargo){gg.append(E('circle',{cx:95,cy:-75,r:38,fill:'#e4bd62',stroke:'#0b1519','stroke-width':'10'}));gg.append(E('text',{x:95,y:-60,'text-anchor':'middle','font-size':'46','font-weight':'900',fill:'#141a1c'},'1'));}}else if(q.kind==='TANK'){gg.append(E('rect',{x:-120,y:-55,width:240,height:110,rx:28,fill:c,stroke:'#0b1519','stroke-width':'20'}));gg.append(E('rect',{x:-58,y:-40,width:116,height:80,rx:20,fill:'#6d7f85',stroke:'#0b1519','stroke-width':'15'}));gg.append(E('rect',{x:45,y:-11,width:145,height:22,rx:11,fill:'#9ba8ad',stroke:'#0b1519','stroke-width':'13'}));}else if(q.kind==='RECON'){gg.append(E('rect',{x:-110,y:-52,width:220,height:104,rx:42,fill:c,stroke:'#0b1519','stroke-width':'18'}));gg.append(E('circle',{cx:0,cy:-8,r:32,fill:'#cbd7db',stroke:'#0b1519','stroke-width':'12'}));gg.append(E('line',{x1:25,y1:-20,x2:70,y2:-90,stroke:'#0b1519','stroke-width':'12'}));}else if(q.kind==='SF'){gg.append(E('circle',{cx:0,cy:-55,r:34,fill:c,stroke:'#0b1519','stroke-width':'14'}));gg.append(E('path',{d:'M-40 -15 L0 70 L40 -15 Z',fill:c,stroke:'#0b1519','stroke-width':'14'}));gg.append(E('line',{x1:45,y1:-8,x2:125,y2:-8,stroke:'#0b1519','stroke-width':'13'}));}else if(q.kind==='AT'||q.kind==='FIRE'){gg.append(E('path',{d:'M-95 55 L-25 15 L75 15 L110 55 Z',fill:c,stroke:'#0b1519','stroke-width':'18'}));gg.append(E('line',{x1:-20,y1:10,x2:75,y2:-90,stroke:'#d5dadd','stroke-width':'20'}));}else{gg.append(E('circle',{cx:0,cy:-48,r:30,fill:c,stroke:'#0b1519','stroke-width':'13'}));gg.append(E('path',{d:'M-40 -5 L0 70 L40 -5 Z',fill:c,stroke:'#0b1519','stroke-width':'13'}));}
+  if(q.side===0){gg.append(E('circle',{cx:-92,cy:-40,r:20,fill:'none',stroke:'#eaf6ff','stroke-width':'9'}));}else{gg.append(E('circle',{cx:-92,cy:-40,r:17,fill:'#ffe1c8'}));}
+  const hp=clamp(q.personnel/Math.max(1,q.maxPersonnel),0,1);gg.append(E('rect',{x:-105,y:-180,width:210,height:24,rx:10,fill:'#081014',stroke:'#0b1519','stroke-width':'8'}));gg.append(E('rect',{x:-98,y:-173,width:196*hp,height:10,rx:5,fill:hp>.6?'#5ed08f':hp>.3?'#e3c761':'#ff5d60'}));gg.append(E('text',{x:0,y:145,'text-anchor':'middle',fill:'#f5f7f8','font-size':'64','font-weight':'900',style:'paint-order:stroke;stroke:#091216;stroke-width:14'},`#${q.id}`));g.append(gg)}
+function drawFx(){const old=svg.querySelector('#fxLayer');if(old)old.remove();const g=E('g',{id:'fxLayer'});for(const fx of state.fx||[]){const p=fx.t;const a=Math.max(0,Math.min(1,p));
+  if(fx.kind==='death'){
+    g.append(E('circle',{cx:fx.x2,cy:fx.y2,r:60+(1-a)*240,fill:'none',stroke:'#ff5d4a',opacity:.85*a,'stroke-width':'26'}));
+    g.append(E('circle',{cx:fx.x2,cy:fx.y2,r:30+(1-a)*130,fill:'#ffb347',opacity:.5*a}));
+    const seed=Math.floor(fx.x2)+Math.floor(fx.y2);
+    for(let i=0;i<5;i++){const ang=((seed*31+i*137)%360)*Math.PI/180,len=90+(1-a)*220;g.append(E('line',{x1:fx.x2,y1:fx.y2,x2:fx.x2+Math.cos(ang)*len,y2:fx.y2+Math.sin(ang)*len,stroke:'#3a3a3a',opacity:.7*a,'stroke-width':'14'}));}
+    g.append(E('line',{x1:fx.x2-90,y1:fx.y2-90,x2:fx.x2+90,y2:fx.y2+90,stroke:'#161a1b',opacity:a,'stroke-width':'22'}));
+    g.append(E('line',{x1:fx.x2-90,y1:fx.y2+90,x2:fx.x2+90,y2:fx.y2-90,stroke:'#161a1b',opacity:a,'stroke-width':'22'}));
+    continue;
+  }
+  g.append(E('circle',{cx:fx.x1,cy:fx.y1,r:38*a,fill:fx.kind==='hit'?'#ffe29a':'#c9d7dc',opacity:.75*a}));
+  g.append(E('line',{x1:fx.x1,y1:fx.y1,x2:fx.x2,y2:fx.y2,stroke:fx.kind==='hit'?'#ffcf76':'#d6e4ea','stroke-width':fx.kind==='hit'?28:16,opacity:a}));
+  if(fx.kind==='hit'){
+    g.append(E('circle',{cx:fx.x2,cy:fx.y2,r:130+(1-a)*90,fill:'#ffc85c',opacity:.6*a}));
+    g.append(E('circle',{cx:fx.x2,cy:fx.y2,r:70+(1-a)*50,fill:'#fff3d0',opacity:.5*a}));
+    if(fx.damage)g.append(E('text',{x:fx.x2,y:fx.y2-180,'text-anchor':'middle',fill:'#ffe8a3','font-size':'72','font-weight':'900',opacity:a},`-${fx.damage}`));
+  }
+}svg.append(g)}
+function updateScene(){drawAtmosphere();drawFacilities();drawUnits();drawFx();drawMinimapDynamic();}
+function renderSelected(){const el=document.getElementById('selected');if(selected==null){el.classList.add('hidden');return}const q=state.units.find(x=>x.id===selected);if(!q){selected=null;el.classList.add('hidden');return}el.classList.remove('hidden');const u=UNIT[q.kind];const hp=clamp(q.personnel/q.maxPersonnel,0,1);el.innerHTML=`<div class="selectedTop"><div class="badge">${u.short}</div><div><div style="font-weight:900">#${q.id} ${u.name}</div><div class="tiny">${u.role}</div></div></div><div class="hp"><i style="width:${hp*100}%"></i></div><div class="statLine"><span>兵力 ${Math.round(q.personnel)} / ${q.maxPersonnel}</span><span>彈藥 ${Math.round(q.ammo)}%</span></div><div class="statLine"><span>士氣 ${Math.round(q.morale*100)}%</span><span>${q.status||'待命'}</span></div>`;}
+function renderPrep(){const b=document.getElementById('buyGrid');b.innerHTML='';['INF','TANK','RECON','SF','AT','FIRE','PATROL','FRIGATE','TRANSPORT'].forEach(k=>{const u=UNIT[k];const btn=document.createElement('button');btn.className='buy';btn.innerHTML=`<strong>＋${u.name}</strong><span>${u.role}</span><em>¥${u.cost.toLocaleString()}</em>`;btn.onclick=()=>send({t:'buy',kind:k});b.appendChild(btn)});updateRoster();updateBudget();document.getElementById('prepTime').textContent=fmt(state.phaseTime||0);}
+function updateRoster(){const r=document.getElementById('roster');const mine=(state.units||[]).filter(q=>q.side===side&&q.active);r.innerHTML=mine.map(q=>`<div class="row"><div><b>#${q.id} ${UNIT[q.kind].name}</b><br><small>${Math.round(q.personnel)}/${q.maxPersonnel}　${q.status||'待命'}</small></div><div><button onclick="selectFromList(${q.id})">定位</button><button class="removeBtn" onclick="selectForDeploy(${q.id})">部署</button></div></div>`).join('')||'<div class="note">尚無部隊。請選擇兵種後建立。</div>'; }
+
+window.selectForDeploy=id=>{selected=id;renderSelected();toast('已選取部隊，點擊地圖可部署');};
+window.selectFromList=id=>{selected=id;renderSelected();const q=state.units.find(x=>x.id===id);if(q){camera.x=q.x;camera.y=q.y;camera.w=Math.min(camera.w,6500);camera.h=Math.min(camera.h,3900);renderCamera();toast('已定位部隊')}};
+function updateBudget(){document.getElementById('budget').textContent=(state.budget?.[side]??20000).toLocaleString()}
+function startBattle(){document.getElementById('prep').classList.add('hidden');document.getElementById('controls').classList.remove('hidden');selected=null;renderSelected();fitAll();toast('戰鬥開始｜地圖即為戰場')}
+function resetReadyBtn(){const b=document.getElementById('ready');b.disabled=false;b.textContent='✓ 準備開始';}
+function showLobbyChoice(){
+  document.getElementById('lobby').classList.remove('hidden');
+  document.getElementById('lobbyChoice').classList.remove('hidden');
+  document.getElementById('lobbyHosting').classList.add('hidden');
+  document.getElementById('prep').classList.add('hidden');
+  document.getElementById('controls').classList.add('hidden');
+  document.getElementById('resultScreen').classList.add('hidden');
+}
+function send(m){if(ws&&ws.readyState===1)ws.send(JSON.stringify(m))}
+let reconnectAttempts=0,reconnectTimer=null;
+function showResult(m){
+  const win=m.winner===side;
+  const el=document.getElementById('resultTitle');el.textContent=win?'勝利':'落敗';el.className='resultTitle '+(win?'win':'lose');
+  document.getElementById('resultReason').textContent=m.reason||'';
+  const myFac=(state.facilities||[]).filter(f=>f.control===side).length;
+  const foeFac=(state.facilities||[]).filter(f=>f.control===(1-side)).length;
+  document.getElementById('resultStats').innerHTML=`<div class="row"><span>戰鬥時長</span><span>${fmt(state.time||0)}</span></div><div class="row"><span>我方傷亡</span><span>${state.losses?.[side]||0}</span></div><div class="row"><span>敵方傷亡</span><span>${state.losses?.[1-side]||0}</span></div><div class="row"><span>我方控制據點</span><span>${myFac}</span></div><div class="row"><span>敵方控制據點</span><span>${foeFac}</span></div>`;
+  document.getElementById('resultScreen').classList.remove('hidden');
+}
+function connect(){
+  const proto=location.protocol==='https:'?'wss':'ws';ws=new WebSocket(`${proto}://${location.host}`);
+  ws.onopen=()=>{reconnectAttempts=0;send({t:'hello',name:'指揮官'});};
+  ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.t==='server_ok')return;
+    if(m.t==='hello_ok'){showLobbyChoice();return}
+    if(m.t==='room'){
+      side=m.side;document.getElementById('mode').textContent=m.mode==='AI'?'單人・AI 對手':'雙人・PvP';
+      document.getElementById('resultScreen').classList.add('hidden');document.getElementById('controls').classList.add('hidden');resetReadyBtn();selected=null;renderSelected();
+      if(side===0){
+        document.getElementById('lobby').classList.remove('hidden');
+        document.getElementById('lobbyChoice').classList.add('hidden');
+        document.getElementById('lobbyHosting').classList.remove('hidden');
+        document.getElementById('roomCodeDisplay').textContent=m.code;
+        document.getElementById('prep').classList.add('hidden');
+      }else{
+        document.getElementById('lobby').classList.add('hidden');
+        document.getElementById('prep').classList.remove('hidden');
+        toast('已加入房間');
+      }
+      return;
+    }
+    if(m.t==='opponent_joined'){document.getElementById('mode').textContent='雙人・PvP';document.getElementById('lobby').classList.add('hidden');document.getElementById('prep').classList.remove('hidden');if(side===0)toast('朋友已加入，開始建軍！');return}
+    if(m.t==='snapshot'){state=m.state||state;renderPrep();render();return}
+    if(m.t==='battle_live'){state.phase='BATTLE';startBattle();return}
+    if(m.t==='prep_start'){document.getElementById('lobby').classList.add('hidden');document.getElementById('prep').classList.remove('hidden');resetReadyBtn();renderPrep();render();return}
+    if(m.t==='result'){toast(m.reason||'戰鬥結束');showResult(m);return}
+    if(m.t==='rematch_lobby'){document.getElementById('resultScreen').classList.add('hidden');document.getElementById('controls').classList.add('hidden');document.getElementById('prep').classList.remove('hidden');resetReadyBtn();selected=null;renderSelected();toast('已重新配置，再戰一場');return}
+    if(m.t==='error')toast(m.message||'指令失敗')
+  };
+  ws.onclose=()=>{toast('連線中斷，正在重新連線…');clearTimeout(reconnectTimer);reconnectAttempts++;reconnectTimer=setTimeout(connect,Math.min(5000,500*reconnectAttempts));};
+}
+function render(){updateBudget();updateRoster();document.getElementById('time').textContent=fmt(state.time||0);document.getElementById('weather').textContent=(state.weather==='RAIN'?'雨天':'晴朗')+'・'+(state.dayPhase==='NIGHT'?'夜間':state.dayPhase==='DUSK'?'黃昏':state.dayPhase==='DAWN'?'黎明':'白天');document.getElementById('frontbar').style.width=`${clamp((state.front||11000)/22000*100,10,90)}%`;document.getElementById('lossline').textContent=`傷亡：藍軍 ${state.losses?.[0]||0}　紅軍 ${state.losses?.[1]||0}`;updateScene();renderSelected();}
+function fmt(t){t=Math.max(0,Math.floor(t));return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')}
+document.getElementById('ready').onclick=()=>{send({t:'ready'});const b=document.getElementById('ready');b.disabled=true;b.textContent='等待開戰…';};
+document.getElementById('rematchBtn').onclick=()=>send({t:'rematch'});
+document.getElementById('lobbyCreate').onclick=()=>send({t:'create'});
+document.getElementById('lobbySkipWait').onclick=()=>{document.getElementById('lobby').classList.add('hidden');document.getElementById('prep').classList.remove('hidden');};
+function doJoin(){const code=document.getElementById('joinCodeInput').value.trim();if(!code)return toast('請輸入房號');send({t:'join',code});}
+document.getElementById('lobbyJoin').onclick=doJoin;
+document.getElementById('joinCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter')doJoin();});
+document.getElementById('roomCodeDisplay').onclick=()=>{const code=document.getElementById('roomCodeDisplay').textContent;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(code).then(()=>toast('房號已複製')).catch(()=>toast('房號：'+code));else toast('房號：'+code);};
+document.getElementById('zoomIn').onclick=()=>zoomAt(.78);document.getElementById('zoomOut').onclick=()=>zoomAt(1.28);document.getElementById('fit').onclick=()=>fitAll();
+for(const b of document.querySelectorAll('#controls button'))b.onclick=()=>{commandMode=b.dataset.cmd;document.querySelectorAll('#controls button').forEach(x=>x.classList.toggle('active',x===b));toast(commandMode==='ATTACK'?'攻擊模式：點擊已發現敵軍':'指揮模式：點擊地圖下令')};
+svg.addEventListener('pointerdown',e=>{svg.setPointerCapture(e.pointerId);const p=pointerWorld(e);drag={sx:e.clientX,sy:e.clientY,cx:camera.x,cy:camera.y,wx:p.x,wy:p.y,moved:false,shift:e.shiftKey};});
+svg.addEventListener('pointermove',e=>{if(!drag)return;const dx=(e.clientX-drag.sx)/svg.clientWidth*camera.w,dy=(e.clientY-drag.sy)/svg.clientHeight*camera.h;if(Math.hypot(dx,dy)>8)drag.moved=true;if(drag.moved){camera.x=clamp(drag.cx-dx,camera.w/2,WORLD.w-camera.w/2);camera.y=clamp(drag.cy-dy,camera.h/2,WORLD.h-camera.h/2);renderCamera();}});
+svg.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;const p=pointerWorld(e);if(d.moved&&d.shift){const x1=Math.min(d.wx,p.x),y1=Math.min(d.wy,p.y),x2=Math.max(d.wx,p.x),y2=Math.max(d.wy,p.y);const ids=(state.units||[]).filter(q=>q.side===side&&q.active&&!q.carrier&&q.x>=x1&&q.x<=x2&&q.y>=y1&&q.y<=y2).map(q=>q.id);selected=ids[0]??null;renderSelected();return}if(d.moved)return;
+  let hit=null;for(const q of state.units||[])if(q.active&&!q.carrier&&q.side===side&&Math.hypot(q.x-p.x,q.y-p.y)<220){hit=q;break}
+  if(state.phase==='PREP'){
+    if(hit){selected=hit.id;renderSelected();toast('已選取部隊');return;}
+    if(selected!=null){const q=state.units.find(x=>x.id===selected);if(q&&q.side===side){send({t:'deploy',id:selected,x:p.x,y:p.y});toast('部署位置更新');return;}}
+    return;
+  }
+  if(hit){selected=hit.id;commandMode='MOVE';document.querySelectorAll('#controls button').forEach(x=>x.classList.toggle('active',x.dataset.cmd===commandMode));renderSelected();return}
+  if(selected==null)return;const target=(state.units||[]).find(q=>q.active&&q.side!==side&&Math.hypot(q.x-p.x,q.y-p.y)<240);if(target&&knownEnemy(target)){send({t:'attack',id:selected,targetId:target.id});toast('攻擊命令已下達');return}
+  const q=state.units.find(x=>x.id===selected);if(!q)return;if(commandMode==='STOP'){send({t:'command',id:selected,x:q.x,y:q.y});toast('停止');return}send({t:'command',id:selected,x:p.x,y:p.y});toast('移動命令已下達（跨海將自動徵用運輸艦）');
+});
+window.addEventListener('keydown',e=>{if(e.key==='r'||e.key==='R')fitAll();if(e.key==='+')zoomAt(.78);if(e.key==='-')zoomAt(1.28);});
+buildMap();fitAll();renderPrep();render();connect();
+</script>
+</body></html>
