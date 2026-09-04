@@ -11,7 +11,8 @@ button{font:inherit;color:inherit;cursor:pointer;border:1px solid #3b5662;backgr
 #battle{position:absolute;inset:0;overflow:hidden;background:linear-gradient(#0a151a,#081116)}
 #map{position:absolute;inset:0;width:100%;height:100%;touch-action:none;user-select:none;cursor:crosshair}
 .hudTop{position:absolute;top:14px;left:14px;right:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none;z-index:20}.hudBlock{background:#071115db;border:1px solid #314a56;box-shadow:0 10px 30px #0008;border-radius:14px;padding:10px 14px;backdrop-filter:blur(10px);pointer-events:auto}.title{font-weight:800;letter-spacing:.04em}.tiny{font-size:12px;color:var(--muted)}.score{min-width:340px;text-align:center}.score .bar{height:9px;background:#1d2a31;border-radius:999px;overflow:hidden;margin-top:6px}.score .fill{height:100%;width:50%;background:linear-gradient(90deg,var(--blue) 0 50%,var(--red) 50%)}
-#battle .controls{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;background:#081217ec;border:1px solid #38525e;padding:10px 12px;border-radius:16px;box-shadow:0 12px 36px #000a;z-index:20}.controls button{min-width:84px;background:#122128}.controls button.active{border-color:var(--gold);box-shadow:0 0 0 1px #e4bd6233 inset;background:#1a2b2c}.controls button.attack{border-color:#9f454a}
+#battle .controls{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;background:#081217ec;border:1px solid #38525e;padding:10px 12px;border-radius:16px;box-shadow:0 12px 36px #000a;z-index:20}.controls button{min-width:84px;background:#122128}.controls button.active{border-color:var(--gold);box-shadow:0 0 0 1px #e4bd6233 inset;background:#1a2b2c}.controls button.attack{border-color:#9f454a}.controls button.danger{border-color:#9f454a;background:#2a1315;color:#ffb4b4}.controls button.danger.armed{background:#5c1a1e;border-color:#ff5d60;box-shadow:0 0 0 1px #ff5d6055 inset}
+#battleBuy{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);z-index:21;background:#081217f5;border:1px solid #38525e;border-radius:16px;box-shadow:0 12px 36px #000a;padding:14px 16px;width:min(520px,calc(100vw - 32px))}.battleBuyHead{font-weight:900;color:var(--gold);margin-bottom:10px;font-size:14px}.battleBuyGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.battleBuyGrid button{min-width:0;text-align:left;padding:8px 10px;background:#102028}.battleBuyGrid button strong{display:block;font-size:13px}.battleBuyGrid button span{display:block;font-size:11px;color:#e4bd62;margin-top:3px}.battleBuyGrid button:disabled{opacity:.4;cursor:not-allowed}.battleBuyNote{margin-top:10px;font-size:11px;color:#8fa4ad}
 #selected{position:absolute;left:16px;bottom:16px;width:min(360px,calc(100vw - 32px));background:#071115ed;border:1px solid #415965;border-radius:16px;padding:13px 15px;z-index:21;box-shadow:0 12px 36px #000b;backdrop-filter:blur(10px);pointer-events:none}.selectedTop{display:flex;align-items:center;gap:10px}.badge{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:#13232a;border:1px solid #41606d;font-weight:900}.hp{height:10px;background:#1c2b30;border-radius:99px;overflow:hidden;margin-top:8px}.hp>i{display:block;height:100%;background:linear-gradient(90deg,#46c988,#d5d85f,#ff5b5f)}.statLine{display:flex;justify-content:space-between;margin-top:6px;color:#b3c4ca;font-size:12px}
 #statusToast{position:absolute;top:82px;left:50%;transform:translateX(-50%);padding:8px 13px;background:#091319dd;border:1px solid #405b67;border-radius:999px;font-size:13px;z-index:22;opacity:0;transition:.2s opacity;pointer-events:none}.show{opacity:1!important}
 #zoom{position:absolute;right:16px;bottom:16px;display:flex;gap:7px;z-index:22}.zoomBtn{width:48px;height:48px;font-size:22px;padding:0;display:grid;place-items:center;background:#0a151aee}.zoomBtn.fit{width:74px;font-size:13px}
@@ -21,15 +22,22 @@ button{font:inherit;color:inherit;cursor:pointer;border:1px solid #3b5662;backgr
 .logRow{font-size:12px;color:#b9c8cd;padding:3px 0;border-bottom:1px solid #1c2a30}
 .logRow:last-child{border-bottom:none}
 #statusToast.err{background:#3a1418dd;border-color:#7a3038;color:#ffd7d2}
-#selectBox{position:absolute;border:2px dashed #f5dc79;background:#f5dc7922;z-index:18;pointer-events:none}.prepPanel{position:absolute;inset:18px;display:grid;grid-template-columns:360px minmax(0,1fr) 360px;gap:12px;pointer-events:none}.prepLeft,.prepRight{background:linear-gradient(180deg,#0b171ce8,#071116e8);border:1px solid #3b5662;border-radius:18px;box-shadow:0 18px 50px #0008;overflow:hidden;pointer-events:auto}.prepLeft{padding:18px;overflow:auto}.prepCenter{display:flex;flex-direction:column;justify-content:space-between;padding:18px;background:transparent;pointer-events:none}.prepRight{padding:18px;display:flex;flex-direction:column;justify-content:space-between}.prepTitle{font-size:27px;font-weight:900}.prepSub{color:var(--muted);margin-top:5px}.budget{font-size:24px;font-weight:900;color:var(--gold);margin:16px 0}.buyGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.buy{min-height:92px;text-align:left;padding:12px;position:relative;background:#102028}.buy strong{display:block;font-size:16px}.buy span{display:block;color:#a8bbc2;font-size:12px;margin-top:5px;max-width:88%}.buy em{position:absolute;right:10px;bottom:10px;color:var(--gold);font-style:normal;font-weight:800}.roster{display:grid;gap:8px;max-height:58vh;overflow:auto}.row{display:flex;align-items:center;justify-content:space-between;border:1px solid #263d46;background:#0d1b21;border-radius:10px;padding:10px 12px}.row small{color:#9db0b7}.readyBtn{width:100%;padding:14px;font-size:18px;font-weight:900;background:#17384d;border-color:#5b8daa}.readyBtn:disabled{opacity:.45;cursor:not-allowed}.note{font-size:12px;color:#8fa4ad;line-height:1.65}.prepCenterHint{align-self:flex-start;background:#071115d9;border:1px solid #38525e;border-radius:12px;padding:10px 13px;font-weight:700}.deployTip{color:#b8c7cc;font-size:12px;line-height:1.5}.removeBtn{margin-left:8px}
+#selectBox{position:absolute;border:2px dashed #f5dc79;background:#f5dc7922;z-index:18;pointer-events:none}.prepPanel{position:absolute;inset:18px;display:grid;grid-template-columns:360px minmax(0,1fr) 360px;gap:12px;pointer-events:none}.prepLeft,.prepRight{background:linear-gradient(180deg,#0b171ce8,#071116e8);border:1px solid #3b5662;border-radius:18px;box-shadow:0 18px 50px #0008;overflow:hidden;pointer-events:auto}.prepLeft{padding:18px;overflow:auto}.prepCenter{display:flex;flex-direction:column;justify-content:space-between;padding:18px;background:transparent;pointer-events:none}.prepRight{padding:18px;display:flex;flex-direction:column;justify-content:space-between}.prepTitle{font-size:27px;font-weight:900}.prepSub{color:var(--muted);margin-top:5px}.budget{font-size:24px;font-weight:900;color:var(--gold);margin:16px 0}.buyGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.buy{min-height:92px;text-align:left;padding:12px;position:relative;background:#102028}.buy strong{display:block;font-size:16px}.buy span{display:block;color:#a8bbc2;font-size:12px;margin-top:5px;max-width:88%}.buy em{position:absolute;right:10px;bottom:10px;color:var(--gold);font-style:normal;font-weight:800}.buy:disabled{opacity:.4;cursor:not-allowed}.roster{display:grid;gap:8px;max-height:58vh;overflow:auto}.row{display:flex;align-items:center;justify-content:space-between;border:1px solid #263d46;background:#0d1b21;border-radius:10px;padding:10px 12px}.row small{color:#9db0b7}.readyBtn{width:100%;padding:14px;font-size:18px;font-weight:900;background:#17384d;border-color:#5b8daa}.readyBtn:disabled{opacity:.45;cursor:not-allowed}.note{font-size:12px;color:#8fa4ad;line-height:1.65}.prepCenterHint{align-self:flex-start;background:#071115d9;border:1px solid #38525e;border-radius:12px;padding:10px 13px;font-weight:700}.deployTip{color:#b8c7cc;font-size:12px;line-height:1.5}.removeBtn{margin-left:8px}
 .prepCountdown{display:inline-block;margin-top:10px;padding:6px 14px;border-radius:999px;background:#132a33;border:1px solid #3d6472;color:var(--gold);font-weight:900;font-size:14px}
-#resultScreen{position:absolute;inset:0;z-index:40;background:#050b0fe6;display:flex;align-items:center;justify-content:center}
-.resultPanel{background:linear-gradient(180deg,#0b171ce8,#071116e8);border:1px solid #3b5662;border-radius:20px;box-shadow:0 24px 60px #000a;padding:36px 48px;text-align:center;min-width:340px}
-.resultTitle{font-size:42px;font-weight:900;letter-spacing:.03em}
-.resultTitle.win{color:var(--blue)}.resultTitle.lose{color:var(--red)}
-.resultReason{color:var(--muted);margin-top:8px;font-size:14px}
-.resultStats{margin:22px 0;display:grid;gap:8px;text-align:left;background:#0d1b21;border:1px solid #263d46;border-radius:12px;padding:14px 18px;min-width:260px}
-.resultStats .row{display:flex;justify-content:space-between;font-size:13px;color:#cdd9dd}
+#resultScreen{position:absolute;inset:0;z-index:40;background:#050b0fe6;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.resultPanel{position:relative;overflow:hidden;background:linear-gradient(180deg,#0b171ce8,#071116e8);border:1px solid #3b5662;border-radius:20px;box-shadow:0 24px 60px #000a;padding:40px 52px;text-align:center;min-width:340px;animation:resultIn .5s cubic-bezier(.2,.85,.25,1)}
+.resultPanel::before{content:'';position:absolute;inset:-50%;background:radial-gradient(circle,var(--rc,#4ea8ff) 0%,transparent 62%);opacity:.16;pointer-events:none}
+.resultPanel.win{--rc:#4ea8ff}.resultPanel.lose{--rc:#ff5e62}
+@keyframes resultIn{from{opacity:0;transform:scale(.86) translateY(22px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.resultBadge{position:relative;font-size:58px;line-height:1;margin-bottom:8px;filter:drop-shadow(0 8px 20px #0009)}
+.resultTitle{position:relative;font-size:44px;font-weight:900;letter-spacing:.04em}
+.resultTitle.win{color:var(--blue);text-shadow:0 0 24px #4ea8ff55}.resultTitle.lose{color:var(--red);text-shadow:0 0 24px #ff5e6255}
+.resultReason{position:relative;color:var(--muted);margin-top:8px;font-size:14px}
+.resultStats{position:relative;margin:24px 0;display:grid;gap:2px;text-align:left;background:#0d1b21;border:1px solid #263d46;border-radius:14px;padding:6px 20px;min-width:280px}
+.resultStats .row{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#cdd9dd;padding:9px 0;border-bottom:1px solid #17262c}
+.resultStats .row:last-child{border-bottom:none}
+.resultStats .row span:first-child{color:var(--muted)}
+.resultStats .row span:last-child{font-weight:900;font-size:14px;color:#eef4f6}
 #lobby{position:absolute;inset:0;z-index:50;background:#050b0ff2;display:flex;align-items:center;justify-content:center}
 .lobbyPanel{background:linear-gradient(180deg,#0b171ce8,#071116e8);border:1px solid #3b5662;border-radius:22px;box-shadow:0 24px 60px #000a;padding:40px 46px;text-align:center;min-width:360px}
 .lobbyTitle{font-size:30px;font-weight:900;letter-spacing:.04em}
@@ -61,6 +69,12 @@ button{font:inherit;color:inherit;cursor:pointer;border:1px solid #3b5662;backgr
 <div id="zoom"><button class="zoomBtn fit" id="fit">全圖</button><button class="zoomBtn" id="zoomOut">−</button><button class="zoomBtn" id="zoomIn">＋</button></div>
 <div id="controls" class="controls hidden">
   <button data-cmd="MOVE">移動</button><button data-cmd="ATTACK" class="attack">攻擊</button><button data-cmd="STOP">停止</button><button data-cmd="DEFEND">防守</button><button data-cmd="CAPTURE">佔領</button><button data-cmd="MOBILE">機動</button>
+  <button id="buyToggle">💰 軍購</button><button id="surrenderBtn" class="danger">投降</button>
+</div>
+<div id="battleBuy" class="hidden">
+  <div class="battleBuyHead">軍購中心・軍費 <span id="battleBudget">0</span></div>
+  <div class="battleBuyGrid" id="battleBuyGrid"></div>
+  <div class="battleBuyNote">新單位會出現在本方基地／軍港，需自行下令移動至前線</div>
 </div>
 <div id="prep" class="hidden">
   <div class="prepPanel">
@@ -85,7 +99,8 @@ button{font:inherit;color:inherit;cursor:pointer;border:1px solid #3b5662;backgr
   </div>
 </div>
 <div id="resultScreen" class="hidden">
-  <div class="resultPanel">
+  <div class="resultPanel" id="resultPanel">
+    <div class="resultBadge" id="resultBadge">🏆</div>
     <div class="resultTitle" id="resultTitle">勝利</div>
     <div class="resultReason" id="resultReason"></div>
     <div class="resultStats" id="resultStats"></div>
@@ -377,7 +392,11 @@ function renderSelected(){
   }
 }
 function renderEventLog(){const el=document.getElementById('eventLog');el.innerHTML=(state.events||[]).slice(0,6).map(e=>`<div class="logRow">${esc(e.text)}</div>`).join('');}
-function renderPrep(){const b=document.getElementById('buyGrid');b.innerHTML='';['INF','TANK','RECON','SF','AT','FIRE','PATROL','FRIGATE','TRANSPORT'].forEach(k=>{const u=UNIT[k];const btn=document.createElement('button');btn.className='buy';btn.innerHTML=`<strong>＋${u.name}</strong><span>${u.role}</span><em>¥${u.cost.toLocaleString()}</em>`;btn.onclick=()=>send({t:'buy',kind:k});b.appendChild(btn)});updateRoster();updateBudget();const t=fmt(state.phaseTime||0);document.getElementById('prepTime').textContent=t;const h=document.getElementById('prepTimeHost');if(h)h.textContent=t;}
+function buildBuyGrid(){const b=document.getElementById('buyGrid');b.innerHTML='';['INF','TANK','RECON','SF','AT','FIRE','PATROL','FRIGATE','TRANSPORT'].forEach(k=>{const u=UNIT[k];const btn=document.createElement('button');btn.className='buy';btn.dataset.kind=k;btn.innerHTML=`<strong>＋${u.name}</strong><span>${u.role}</span><em>¥${u.cost.toLocaleString()}</em>`;btn.onclick=()=>send({t:'buy',kind:k});b.appendChild(btn)});}
+// Rebuilding #buyGrid on every snapshot (up to ~3.3Hz in PREP) replaced the buttons out from under
+// real clicks — this was almost certainly the "recruit button flaky" bug. Build once, then only touch
+// each button's disabled state on subsequent calls.
+function renderPrep(){const b=document.getElementById('buyGrid');if(!b.children.length)buildBuyGrid();const budget=state.budget?.[side]??0;for(const btn of b.children)btn.disabled=budget<UNIT[btn.dataset.kind].cost;updateRoster();updateBudget();const t=fmt(state.phaseTime||0);document.getElementById('prepTime').textContent=t;const h=document.getElementById('prepTimeHost');if(h)h.textContent=t;}
 function updateRoster(){const r=document.getElementById('roster');const mine=(state.units||[]).filter(q=>q.side===side&&q.active);r.innerHTML=mine.map(q=>`<div class="row"><div><b>#${q.id} ${UNIT[q.kind].name}</b><br><small>${Math.round(q.personnel)}/${q.maxPersonnel}　${q.status||'待命'}</small></div><div><button onclick="selectFromList(${q.id})">定位</button><button class="removeBtn" onclick="selectForDeploy(${q.id})">部署</button></div></div>`).join('')||'<div class="note">尚無部隊。請選擇兵種後建立。</div>'; }
 
 window.selectForDeploy=id=>{selectedIds=[id];renderSelected();toast('已選取部隊，點擊地圖可部署');};
@@ -392,16 +411,20 @@ function showLobbyChoice(){
   document.getElementById('prep').classList.add('hidden');
   document.getElementById('controls').classList.add('hidden');
   document.getElementById('resultScreen').classList.add('hidden');
+  document.getElementById('battleBuy').classList.add('hidden');
 }
 function send(m){if(ws&&ws.readyState===1)ws.send(JSON.stringify(m))}
 let reconnectAttempts=0,reconnectTimer=null;
 function showResult(m){
+  document.getElementById('battleBuy').classList.add('hidden');
   const win=m.winner===side;
   const el=document.getElementById('resultTitle');el.textContent=win?'勝利':'落敗';el.className='resultTitle '+(win?'win':'lose');
+  document.getElementById('resultPanel').className='resultPanel '+(win?'win':'lose');
+  document.getElementById('resultBadge').textContent=win?'🏆':'🏳️';
   document.getElementById('resultReason').textContent=m.reason||'';
   const myFac=(state.facilities||[]).filter(f=>f.control===side).length;
   const foeFac=(state.facilities||[]).filter(f=>f.control===(1-side)).length;
-  document.getElementById('resultStats').innerHTML=`<div class="row"><span>戰鬥時長</span><span>${fmt(state.time||0)}</span></div><div class="row"><span>我方傷亡</span><span>${state.losses?.[side]||0}</span></div><div class="row"><span>敵方傷亡</span><span>${state.losses?.[1-side]||0}</span></div><div class="row"><span>我方控制據點</span><span>${myFac}</span></div><div class="row"><span>敵方控制據點</span><span>${foeFac}</span></div>`;
+  document.getElementById('resultStats').innerHTML=`<div class="row"><span>⏱️ 戰鬥時長</span><span>${fmt(state.time||0)}</span></div><div class="row"><span>🩸 我方傷亡</span><span>${state.losses?.[side]||0}</span></div><div class="row"><span>⚔️ 敵方傷亡</span><span>${state.losses?.[1-side]||0}</span></div><div class="row"><span>🚩 我方控制據點</span><span>${myFac}</span></div><div class="row"><span>🏴 敵方控制據點</span><span>${foeFac}</span></div>`;
   document.getElementById('resultScreen').classList.remove('hidden');
 }
 function connect(){
@@ -411,7 +434,7 @@ function connect(){
     if(m.t==='hello_ok'){showLobbyChoice();return}
     if(m.t==='room'){
       side=m.side;document.getElementById('mode').textContent=m.mode==='AI'?'單人・AI 對手':'雙人・PvP';
-      document.getElementById('resultScreen').classList.add('hidden');document.getElementById('controls').classList.add('hidden');resetReadyBtn();selectedIds=[];renderSelected();
+      document.getElementById('resultScreen').classList.add('hidden');document.getElementById('controls').classList.add('hidden');document.getElementById('battleBuy').classList.add('hidden');resetReadyBtn();selectedIds=[];renderSelected();
       if(side===0){
         document.getElementById('lobby').classList.remove('hidden');
         document.getElementById('lobbyChoice').classList.add('hidden');
@@ -431,12 +454,12 @@ function connect(){
     if(m.t==='battle_live'){state.phase='BATTLE';startBattle();return}
     if(m.t==='prep_start'){document.getElementById('lobby').classList.add('hidden');document.getElementById('prep').classList.remove('hidden');resetReadyBtn();fitHome();renderPrep();render();return}
     if(m.t==='result'){toast(m.reason||'戰鬥結束');showResult(m);return}
-    if(m.t==='rematch_lobby'){document.getElementById('resultScreen').classList.add('hidden');document.getElementById('controls').classList.add('hidden');document.getElementById('prep').classList.remove('hidden');resetReadyBtn();selectedIds=[];renderSelected();fitHome();toast('已重新配置，再戰一場');return}
+    if(m.t==='rematch_lobby'){document.getElementById('resultScreen').classList.add('hidden');document.getElementById('controls').classList.add('hidden');document.getElementById('battleBuy').classList.add('hidden');document.getElementById('prep').classList.remove('hidden');resetReadyBtn();selectedIds=[];renderSelected();fitHome();toast('已重新配置，再戰一場');return}
     if(m.t==='error')toast(m.message||'指令失敗','error')
   };
   ws.onclose=()=>{toast('連線中斷，正在重新連線…');clearTimeout(reconnectTimer);reconnectAttempts++;reconnectTimer=setTimeout(connect,Math.min(5000,500*reconnectAttempts));};
 }
-function render(){updateBudget();updateRoster();document.getElementById('time').textContent=fmt(state.time||0);document.getElementById('weather').textContent=(state.weather==='RAIN'?'雨天':'晴朗')+'・'+(state.dayPhase==='NIGHT'?'夜間':state.dayPhase==='DUSK'?'黃昏':state.dayPhase==='DAWN'?'黎明':'白天');document.getElementById('frontbar').style.width=`${clamp((state.front||23100)/WORLD.w*100,10,90)}%`;document.getElementById('lossline').textContent=`傷亡：藍軍 ${state.losses?.[0]||0}　紅軍 ${state.losses?.[1]||0}`;updateScene();renderSelected();renderEventLog();}
+function render(){updateBudget();updateRoster();document.getElementById('time').textContent=fmt(state.time||0);document.getElementById('weather').textContent=(state.weather==='RAIN'?'雨天':'晴朗')+'・'+(state.dayPhase==='NIGHT'?'夜間':state.dayPhase==='DUSK'?'黃昏':state.dayPhase==='DAWN'?'黎明':'白天');document.getElementById('frontbar').style.width=`${clamp((state.front||23100)/WORLD.w*100,10,90)}%`;document.getElementById('lossline').textContent=`傷亡：藍軍 ${state.losses?.[0]||0}　紅軍 ${state.losses?.[1]||0}`;updateScene();renderSelected();renderEventLog();if(state.phase==='BATTLE'&&!document.getElementById('battleBuy').classList.contains('hidden'))renderBattleBuy();}
 function fmt(t){t=Math.max(0,Math.floor(t));return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')}
 document.getElementById('ready').onclick=()=>{send({t:'ready'});const b=document.getElementById('ready');b.disabled=true;b.textContent='等待開戰…';};
 document.getElementById('rematchBtn').onclick=()=>send({t:'rematch'});
@@ -447,7 +470,36 @@ document.getElementById('lobbyJoin').onclick=doJoin;
 document.getElementById('joinCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter')doJoin();});
 document.getElementById('roomCodeDisplay').onclick=()=>{const code=document.getElementById('roomCodeDisplay').textContent;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(code).then(()=>toast('房號已複製')).catch(()=>toast('房號：'+code));else toast('房號：'+code);};
 document.getElementById('zoomIn').onclick=()=>zoomAt(.78);document.getElementById('zoomOut').onclick=()=>zoomAt(1.28);document.getElementById('fit').onclick=()=>fitAll();
-for(const b of document.querySelectorAll('#controls button'))b.onclick=()=>{commandMode=b.dataset.cmd;document.querySelectorAll('#controls button').forEach(x=>x.classList.toggle('active',x===b));toast(commandMode==='ATTACK'?'攻擊模式：點擊已發現敵軍或敵方工廠':'指揮模式：點擊地圖下令')};
+for(const b of document.querySelectorAll('#controls button[data-cmd]'))b.onclick=()=>{commandMode=b.dataset.cmd;document.querySelectorAll('#controls button[data-cmd]').forEach(x=>x.classList.toggle('active',x===b));toast(commandMode==='ATTACK'?'攻擊模式：點擊已發現敵軍或敵方工廠':'指揮模式：點擊地圖下令')};
+const BATTLE_BUY_KINDS=['INF','TANK','RECON','SF','AT','FIRE','PATROL','FRIGATE','TRANSPORT'];
+function buildBattleBuyGrid(){
+  const g=document.getElementById('battleBuyGrid');
+  g.innerHTML='';
+  for(const k of BATTLE_BUY_KINDS){
+    const u=UNIT[k];const btn=document.createElement('button');
+    btn.dataset.kind=k;
+    btn.innerHTML=`<strong>＋${u.name}</strong><span>¥${u.cost.toLocaleString()}</span>`;
+    btn.onclick=()=>send({t:'buy',kind:k});
+    g.appendChild(btn);
+  }
+}
+// Only updates budget text + each button's disabled state in place — never rebuilds the DOM, since
+// this is refreshed on every snapshot (up to 10Hz) and rebuilding was replacing buttons out from under
+// real clicks (the click would land on an element already destroyed by the next render).
+function renderBattleBuy(){
+  const g=document.getElementById('battleBuyGrid');
+  if(!g.children.length)buildBattleBuyGrid();
+  const budget=state.budget?.[side]??0;
+  document.getElementById('battleBudget').textContent=budget.toLocaleString();
+  for(const btn of g.children)btn.disabled=budget<UNIT[btn.dataset.kind].cost;
+}
+document.getElementById('buyToggle').onclick=()=>{document.getElementById('battleBuy').classList.toggle('hidden');renderBattleBuy();};
+let surrenderArmed=false,surrenderTimer=null;
+document.getElementById('surrenderBtn').onclick=()=>{
+  const b=document.getElementById('surrenderBtn');
+  if(!surrenderArmed){surrenderArmed=true;b.classList.add('armed');b.textContent='確定投降？再按一次';toast('再點一次「投降」按鈕即可確認','error');clearTimeout(surrenderTimer);surrenderTimer=setTimeout(()=>{surrenderArmed=false;b.classList.remove('armed');b.textContent='投降';},4000);return;}
+  clearTimeout(surrenderTimer);surrenderArmed=false;b.classList.remove('armed');b.textContent='投降';send({t:'surrender'});
+};
 svg.addEventListener('pointerdown',e=>{svg.setPointerCapture(e.pointerId);const p=pointerWorld(e);drag={sx:e.clientX,sy:e.clientY,cx:camera.x,cy:camera.y,wx:p.x,wy:p.y,moved:false,shift:e.shiftKey};});
 svg.addEventListener('pointermove',e=>{if(!drag)return;const dx=(e.clientX-drag.sx)/svg.clientWidth*camera.w,dy=(e.clientY-drag.sy)/svg.clientHeight*camera.h;if(Math.hypot(dx,dy)>8)drag.moved=true;if(drag.moved&&drag.shift){const r=svg.getBoundingClientRect();const bx1=Math.min(drag.sx,e.clientX)-r.left,by1=Math.min(drag.sy,e.clientY)-r.top,bx2=Math.max(drag.sx,e.clientX)-r.left,by2=Math.max(drag.sy,e.clientY)-r.top;const box=document.getElementById('selectBox');box.style.left=bx1+'px';box.style.top=by1+'px';box.style.width=(bx2-bx1)+'px';box.style.height=(by2-by1)+'px';box.classList.remove('hidden');return}if(drag.moved){camera.x=clamp(drag.cx-dx,camera.w/2,WORLD.w-camera.w/2);camera.y=clamp(drag.cy-dy,camera.h/2,WORLD.h-camera.h/2);renderCamera();}});
 svg.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;document.getElementById('selectBox').classList.add('hidden');const p=pointerWorld(e);if(d.moved&&d.shift){const x1=Math.min(d.wx,p.x),y1=Math.min(d.wy,p.y),x2=Math.max(d.wx,p.x),y2=Math.max(d.wy,p.y);const ids=(state.units||[]).filter(q=>q.side===side&&q.active&&!q.carrier&&q.x>=x1&&q.x<=x2&&q.y>=y1&&q.y<=y2).map(q=>q.id);selectedIds=ids;renderSelected();toast(ids.length>1?`已框選 ${ids.length} 支部隊`:ids.length===1?'已選取部隊':'框選範圍內沒有部隊');return}if(d.moved)return;

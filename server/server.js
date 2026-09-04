@@ -123,13 +123,59 @@ function terrainAt(x,y){
   return 'plain';
 }
 function isLandUnit(q){return !UNIT[q.kind].naval;}
-function findShore(sx,sy,tx,ty){let last={x:sx,y:sy};for(let t=0.02;t<=1;t+=0.02){const x=sx+(tx-sx)*t,y=sy+(ty-sy)*t;if(terrainAt(x,y)==='water')last={x,y};else break;}return last;}
-function findLandEdge(sx,sy,tx,ty){let last={x:sx,y:sy};for(let t=0.02;t<=1;t+=0.02){const x=sx+(tx-sx)*t,y=sy+(ty-sy)*t;if(terrainAt(x,y)!=='water')last={x,y};else break;}return last;}
+// Finer sampling + a fixed buffer nudge back from the detected boundary, so the returned point isn't
+// sitting right on a coin-flip edge of a jagged real coastline (which is what let units briefly stray
+// into "water" mid-transit and trip the stepMove recovery net instead of following their real order).
+function findShore(sx,sy,tx,ty){
+  let last={x:sx,y:sy};
+  for(let t=0.01;t<=1;t+=0.01){const x=sx+(tx-sx)*t,y=sy+(ty-sy)*t;if(terrainAt(x,y)==='water')last={x,y};else break;}
+  const dx=tx-sx,dy=ty-sy,d=Math.hypot(dx,dy)||1,nx=last.x-dx/d*250,ny=last.y-dy/d*250;
+  return terrainAt(nx,ny)==='water'?{x:nx,y:ny}:last;
+}
+function findLandEdge(sx,sy,tx,ty){
+  let last={x:sx,y:sy};
+  for(let t=0.01;t<=1;t+=0.01){const x=sx+(tx-sx)*t,y=sy+(ty-sy)*t;if(terrainAt(x,y)!=='water')last={x,y};else break;}
+  const dx=tx-sx,dy=ty-sy,d=Math.hypot(dx,dy)||1,nx=last.x-dx/d*250,ny=last.y-dy/d*250;
+  return terrainAt(nx,ny)!=='water'?{x:nx,y:ny}:last;
+}
 function crossesWater(sx,sy,tx,ty){
   const steps=60;
   for(let i=0;i<=steps;i++){const t=i/steps;if(terrainAt(sx+(tx-sx)*t,sy+(ty-sy)*t)==='water')return true;}
   return false;
 }
+// Strict landmass id (TW/JP only, not corridors) — used to tell "a real strait crossing" apart from
+// "the straight line just clips a small bay on the same landmass", which should never need a ferry.
+function strictLandmass(x,y){if(pointInPoly(x,y,TAIWAN_POLY))return 'TW';if(pointInPoly(x,y,JAPAN_POLY))return 'JP';return null;}
+function nearestSpot(x,y,wantWater){
+  if((terrainAt(x,y)==='water')===wantWater)return {x,y};
+  for(let r=300;r<=8000;r+=300){
+    for(let a=0;a<360;a+=24){
+      const rad=a*Math.PI/180,px=x+Math.cos(rad)*r,py=y+Math.sin(rad)*r;
+      if((terrainAt(px,py)==='water')===wantWater)return {x:px,y:py};
+    }
+  }
+  return {x,y};
+}
+const DETOUR_VERTICES=[...TAIWAN_POLY,...JAPAN_POLY,...NORTH_CORRIDOR_POLY,...SOUTH_CORRIDOR_POLY];
+// One-hop "walk around the headland" detour via a visible land vertex, for the common case of a
+// straight line clipping a small bay/inlet on the same connected land network. Not a full navmesh,
+// but handles the vast majority of real coastline concavity without ever touching the ferry system.
+function findLandDetour(sx,sy,tx,ty){
+  let best=null,bd=Infinity;
+  const candidates=[{x:sx,y:ty},{x:tx,y:sy}];
+  for(const p of DETOUR_VERTICES)candidates.push({x:p[0],y:p[1]});
+  for(const c of candidates){
+    if(terrainAt(c.x,c.y)==='water')continue;
+    if(crossesWater(sx,sy,c.x,c.y)||crossesWater(c.x,c.y,tx,ty))continue;
+    const d=Math.hypot(c.x-sx,c.y-sy)+Math.hypot(tx-c.x,ty-c.y);
+    if(d<bd){bd=d;best=c;}
+  }
+  return best;
+}
+// Ferry is only ever offered as the fast-but-risky shortcut for a genuine cross-strait order (Taiwan
+// mainland <-> Japan mainland). Any move that stays within one landmass — including one that merely
+// clips a small bay, or one that starts/ends inside a corridor — walks instead; see findLandDetour.
+function wantsFerry(sx,sy,tx,ty){const a=strictLandmass(sx,sy),b=strictLandmass(tx,ty);return !!(a&&b&&a!==b);}
 function nearestCorridorRoute(sx,sy,tx,ty){
   let best=null,bd=Infinity;
   for(const c of CORRIDORS){
@@ -146,11 +192,16 @@ function buildPath(q,tx,ty){
   if(naval){pts.push({x:tx,y:ty,kind:'target'});return pts;}
   const sx=q.x,sy=q.y;
   if(crossesWater(sx,sy,tx,ty)&&!onMid(tx,ty)&&!onMid(sx,sy)){
-    const route=nearestCorridorRoute(sx,sy,tx,ty);
-    if(route){
-      pts.push({x:route.entry.x,y:route.entry.y,kind:'corridor'});
-      pts.push({x:route.pass.x,y:route.pass.y,kind:'corridor'});
-      pts.push({x:route.exit.x,y:route.exit.y,kind:'corridor'});
+    const detour=findLandDetour(sx,sy,tx,ty);
+    if(detour){
+      pts.push({x:detour.x,y:detour.y,kind:'detour'});
+    }else{
+      const route=nearestCorridorRoute(sx,sy,tx,ty);
+      if(route){
+        pts.push({x:route.entry.x,y:route.entry.y,kind:'corridor'});
+        pts.push({x:route.pass.x,y:route.pass.y,kind:'corridor'});
+        pts.push({x:route.exit.x,y:route.exit.y,kind:'corridor'});
+      }
     }
   } else if(terrainAt(tx,ty)==='mountain' || terrainAt(sx,sy)==='mountain'){
     const pass=PASSES.slice().sort((a,b)=>Math.hypot(a.x-sx,a.y-sy)+Math.hypot(a.x-tx,a.y-ty)-Math.hypot(b.x-sx,b.y-sy)-Math.hypot(b.x-tx,b.y-ty))[0];
@@ -254,7 +305,7 @@ function handle(ws,m){
   if(t==='deploy'&&r.state.phase==='PREP'){
     const q=own(r,p,m.id),x=Number(m.x),y=Number(m.y);if(!q||!Number.isFinite(x)||!Number.isFinite(y))return; if(!isLandUnit(q)&&terrainAt(x,y)!=='water')return send(ws,{t:'error',message:'海軍只能部署在海域'}); if(isLandUnit(q)&&countryAt(x,y)!==p.side)return send(ws,{t:'error',message:'戰前只能部署在自己的本島領土'}); q.x=clamp(x,250,WORLD.w-250);q.y=clamp(y,250,WORLD.h-250);q.target={x:q.x,y:q.y};q.path=[];q.status='已部署';return snap(r);
   }
-  if(t==='buy'&&r.state.phase==='PREP'){
+  if(t==='buy'&&(r.state.phase==='PREP'||r.state.phase==='BATTLE')){
     const u=UNIT[String(m.kind||'INF')];if(!u)return; if(r.state.budget[p.side]<u.cost)return send(ws,{t:'error',message:'軍費不足'});
     r.state.budget[p.side]-=u.cost;r.state.spent[p.side]+=u.cost;
     const hp=homePoint(p.side,String(m.kind));
@@ -271,7 +322,7 @@ function handle(ws,m){
         if(!tryFerry(r.state,q,cx,cy))return send(ws,{t:'error',message:'前往／離開中繼島需要運輸艦接應'});
         return snap(r);
       }
-      if(crossesWater(q.x,q.y,cx,cy)&&tryFerry(r.state,q,cx,cy))return snap(r);
+      if(crossesWater(q.x,q.y,cx,cy)&&wantsFerry(q.x,q.y,cx,cy)&&tryFerry(r.state,q,cx,cy))return snap(r);
     }
     q.target={x:cx,y:cy};q.intent='MOVE';q.attackFacility=null;q.path=buildPath(q,cx,cy);q.pathIndex=0;q.status='行軍';return snap(r);
   }
@@ -285,7 +336,7 @@ function handle(ws,m){
       if(isLandUnit(q)){
         if(!onLand(f.x,f.y))return;
         if(onMid(f.x,f.y)||onMid(q.x,q.y)){if(!tryFerry(r.state,q,f.x,f.y))return send(ws,{t:'error',message:'需要運輸艦接應才能攻擊該目標'});return snap(r);}
-        if(crossesWater(q.x,q.y,f.x,f.y)&&tryFerry(r.state,q,f.x,f.y))return snap(r);
+        if(crossesWater(q.x,q.y,f.x,f.y)&&wantsFerry(q.x,q.y,f.x,f.y)&&tryFerry(r.state,q,f.x,f.y))return snap(r);
       }
       q.target={x:f.x,y:f.y};q.path=buildPath(q,f.x,f.y);q.pathIndex=0;q.intent='ATTACK';q.attackFacility=f.id;q.status='砲擊接近中';return snap(r);
     }
@@ -293,14 +344,30 @@ function handle(ws,m){
     if(isLandUnit(q)){
       if(!onLand(b.x,b.y))return send(ws,{t:'error',message:'陸軍無法攻擊海上目標，請改派海軍或先搭乘運輸艦'});
       if(onMid(b.x,b.y)||onMid(q.x,q.y)){if(!tryFerry(r.state,q,b.x,b.y))return send(ws,{t:'error',message:'需要運輸艦接應才能攻擊該目標'});return snap(r);}
-      if(crossesWater(q.x,q.y,b.x,b.y)&&tryFerry(r.state,q,b.x,b.y))return snap(r);
+      if(crossesWater(q.x,q.y,b.x,b.y)&&wantsFerry(q.x,q.y,b.x,b.y)&&tryFerry(r.state,q,b.x,b.y))return snap(r);
     }
     q.target={x:b.x,y:b.y};q.path=buildPath(q,b.x,b.y);q.pathIndex=0;q.intent='ATTACK';q.attackFacility=null;q.status='接敵';return;
   }
   if(t==='stance'&&r.state.phase==='BATTLE'){const q=own(r,p,m.id);if(q){q.stance=['ATTACK','DEFEND','MOBILE'].includes(m.value)?m.value:q.stance;}return snap(r);}
+  if(t==='surrender'&&r.state.phase==='BATTLE'){return finish(r,1-p.side,`${p.side===0?'藍軍':'紅軍'}投降`);}
 }
 function speedFactor(q){const t=terrainAt(q.x,q.y);const naval=UNIT[q.kind].naval;if(t==='water')return naval?1:0;return naval?0:(terrainSpeed[t]||1);}
-function stepMove(s,q,dt){if(q.reserve)return;if(!q.path.length)return;const node=q.path[Math.min(q.pathIndex,q.path.length-1)];const dx=node.x-q.x,dy=node.y-q.y,d=Math.hypot(dx,dy);if(d<25){q.pathIndex++;if(q.pathIndex>=q.path.length){q.path=[];q.status=q.intent==='ATTACK'?'交戰位置':'就位';return;}return;}if(d>4)q.heading=Math.atan2(dx,-dy)*180/Math.PI;let sp=UNIT[q.kind].speed*speedFactor(q);if(q.stance==='ATTACK')sp*=1.04;if(q.stance==='DEFEND')sp*=.84;if(q.stance==='MOBILE')sp*=1.18;if(q.suppression>.62)sp*=.58;if(q.morale<.5)sp*=.8;q.x+=dx/d*Math.min(d,sp*dt);q.y+=dy/d*Math.min(d,sp*dt);}
+// Safety net: a unit should never be permanently frozen because it ended up on the wrong side of the
+// water/land line (imprecise shore-finding on a jagged real coastline, a ship parked mid-transfer, etc).
+// If that happens, head for the nearest valid terrain for that unit type instead of sitting at 0 speed.
+function stepMove(s,q,dt){
+  if(q.reserve)return;
+  const naval=!!UNIT[q.kind].naval;
+  const onWater=terrainAt(q.x,q.y)==='water';
+  if(naval!==onWater){
+    const spot=nearestSpot(q.x,q.y,naval);
+    const dx=spot.x-q.x,dy=spot.y-q.y,d=Math.hypot(dx,dy)||1;
+    const sp=UNIT[q.kind].speed;
+    q.x+=dx/d*Math.min(d,sp*dt);q.y+=dy/d*Math.min(d,sp*dt);
+    q.status=naval?'脫離淺灘中':'撤離水域中';
+    return;
+  }
+  if(!q.path.length)return;const node=q.path[Math.min(q.pathIndex,q.path.length-1)];const dx=node.x-q.x,dy=node.y-q.y,d=Math.hypot(dx,dy);if(d<25){q.pathIndex++;if(q.pathIndex>=q.path.length){q.path=[];q.status=q.intent==='ATTACK'?'交戰位置':'就位';return;}return;}if(d>4)q.heading=Math.atan2(dx,-dy)*180/Math.PI;let sp=UNIT[q.kind].speed*speedFactor(q);if(q.stance==='ATTACK')sp*=1.04;if(q.stance==='DEFEND')sp*=.84;if(q.stance==='MOBILE')sp*=1.18;if(q.suppression>.62)sp*=.58;if(q.morale<.5)sp*=.8;q.x+=dx/d*Math.min(d,sp*dt);q.y+=dy/d*Math.min(d,sp*dt);}
 function updateFerries(s){
   for(const t of s.units){
     if(!t.active||t.kind!=='TRANSPORT'||!t.cargo.length)continue;
