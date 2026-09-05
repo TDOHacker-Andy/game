@@ -15,15 +15,18 @@ const rooms = new Map();
 let nextRoom = 2800;
 let nextUnit = 1;
 
+// dmg values are ~15% lower than the original balance pass — engagements were killing units before a
+// player could see the fight start and issue a retreat order; this buys a bit more reaction time
+// without changing the relative strengths between unit types.
 const UNIT = {
-  INF: { name:'突擊兵', short:'突', cost:700, max:180, speed:247, range:1092, acc:.46, dmg:8, rof:.9, vision:1092, armor:0, pen:0, land:true, role:'主力／佔領' },
-  TANK:{ name:'裝甲部隊', short:'甲', cost:2500, max:60, speed:423, range:1470, acc:.58, dmg:22, rof:.34, vision:966, armor:150, pen:180, land:true, role:'肉盾／突破' },
-  RECON:{ name:'偵察兵', short:'偵', cost:950, max:90, speed:564, range:903, acc:.34, dmg:5, rof:1.2, vision:2268, armor:0, pen:0, land:true, role:'4格視野／情報' },
-  SF:{ name:'特戰部隊', short:'特', cost:1550, max:90, speed:658, range:1176, acc:.62, dmg:12, rof:1.05, vision:1680, armor:15, pen:50, land:true, role:'高速／側翼' },
-  AT:{ name:'反裝甲部隊', short:'反', cost:1050, max:75, speed:282, range:1596, acc:.66, dmg:34, rof:.42, vision:1218, armor:20, pen:210, land:true, role:'伏擊／反裝甲' },
-  FIRE:{ name:'火力支援', short:'火', cost:1800, max:40, speed:223, range:2058, acc:.34, dmg:28, rof:.18, vision:1344, armor:20, pen:120, land:true, role:'遠程／壓制' },
-  PATROL:{ name:'巡邏艇', short:'巡', cost:1200, max:24, speed:611, range:1512, acc:.44, dmg:18, rof:.42, vision:2520, armor:60, pen:90, naval:true, role:'近岸巡防' },
-  FRIGATE:{ name:'護衛艦', short:'艦', cost:2600, max:40, speed:447, range:2520, acc:.52, dmg:34, rof:.22, vision:3150, armor:110, pen:160, naval:true, role:'海上火力' },
+  INF: { name:'突擊兵', short:'突', cost:700, max:180, speed:247, range:1092, acc:.46, dmg:7, rof:.9, vision:1092, armor:0, pen:0, land:true, role:'主力／佔領' },
+  TANK:{ name:'裝甲部隊', short:'甲', cost:2500, max:60, speed:423, range:1470, acc:.58, dmg:19, rof:.34, vision:966, armor:150, pen:180, land:true, role:'肉盾／突破' },
+  RECON:{ name:'偵察兵', short:'偵', cost:950, max:90, speed:564, range:903, acc:.34, dmg:4, rof:1.2, vision:2268, armor:0, pen:0, land:true, role:'4格視野／情報' },
+  SF:{ name:'特戰部隊', short:'特', cost:1550, max:90, speed:658, range:1176, acc:.62, dmg:10, rof:1.05, vision:1680, armor:15, pen:50, land:true, role:'高速／側翼' },
+  AT:{ name:'反裝甲部隊', short:'反', cost:1050, max:75, speed:282, range:1596, acc:.66, dmg:29, rof:.42, vision:1218, armor:20, pen:210, land:true, role:'伏擊／反裝甲' },
+  FIRE:{ name:'火力支援', short:'火', cost:1800, max:40, speed:223, range:2058, acc:.34, dmg:24, rof:.18, vision:1344, armor:20, pen:120, land:true, role:'遠程／壓制' },
+  PATROL:{ name:'巡邏艇', short:'巡', cost:1200, max:24, speed:611, range:1512, acc:.44, dmg:15, rof:.42, vision:2520, armor:60, pen:90, naval:true, role:'近岸巡防' },
+  FRIGATE:{ name:'護衛艦', short:'艦', cost:2600, max:40, speed:447, range:2520, acc:.52, dmg:29, rof:.22, vision:3150, armor:110, pen:160, naval:true, role:'海上火力' },
   TRANSPORT:{ name:'運輸艦', short:'運', cost:2200, max:20, speed:353, range:525, acc:.08, dmg:2, rof:.08, vision:1890, armor:40, pen:0, naval:true, role:'跨海運輸（可搭載3隊陸軍）' }
 };
 
@@ -326,7 +329,7 @@ function handle(ws,m){
     cancelFerryWait(r.state,q);
     if(m.facilityId!=null){
       const f=r.state.facilities.find(x=>x.id===m.facilityId);
-      if(!f||f.type!=='FACTORY'||f.destroyed||f.control===p.side)return send(ws,{t:'error',message:'目標無效'});
+      if(!f||f.destroyed||f.control===p.side)return send(ws,{t:'error',message:'目標無效'});
       if(isLandUnit(q)){
         if(!onLand(f.x,f.y))return;
         if(onMid(f.x,f.y)||onMid(q.x,q.y)){if(!tryFerry(r.state,q,f.x,f.y))return send(ws,{t:'error',message:'需要運輸艦接應才能攻擊該目標'});return snap(r);}
@@ -394,9 +397,11 @@ function fireFacility(s,a,f,dt){
   f.hpNow=Math.max(0,f.hpNow-dmg);
   s.fx.push({kind:'hit',x1:a.x,y1:a.y,x2:f.x,y2:f.y,t:1.0,damage:Math.round(dmg*10)/10});
   event(s,`${UNIT[a.kind].name} 砲擊 ${f.name}｜命中 ${dmg.toFixed(1)}`,'combat');
-  if(f.hpNow<=0&&!f.destroyed){
-    f.destroyed=true;f.control=-1;
-    event(s,`${f.name} 被摧毀，經濟收入永久中斷`,'facility');
+  if(f.hpNow<=0){
+    // Bombarding a facility down captures it for the attacker rather than erasing it — a defended
+    // position falls all at once instead of only ever being takeable by camping it unopposed.
+    f.control=a.side;f.capture=[0,0];f.hpNow=Math.round(f.hp*0.5);
+    event(s,`${f.name} 被${sideLabel(a.side)}攻陷佔領`,'facility');
     s.fx.push({kind:'death',x1:f.x,y1:f.y,x2:f.x,y2:f.y,t:1.4,damage:0});
   }
 }
@@ -408,7 +413,7 @@ function combat(s,dt){
     if(b){a.intent='ATTACK';a.status='交火中';fire(s,a,b,dt);continue;}
     if(a.attackFacility){
       const f=s.facilities.find(x=>x.id===a.attackFacility);
-      if(!f||f.destroyed||f.side===a.side){a.attackFacility=null;continue;}
+      if(!f||f.destroyed||f.control===a.side){a.attackFacility=null;continue;}
       const d=Math.hypot(a.x-f.x,a.y-f.y);
       if(d<=UNIT[a.kind].range){a.status='砲擊中';fireFacility(s,a,f,dt);}
     }
