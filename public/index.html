@@ -537,27 +537,39 @@ svg.addEventListener('pointerdown',e=>{svg.setPointerCapture(e.pointerId);const 
 svg.addEventListener('pointermove',e=>{if(!drag)return;const dx=(e.clientX-drag.sx)/svg.clientWidth*camera.w,dy=(e.clientY-drag.sy)/svg.clientHeight*camera.h;if(Math.hypot(dx,dy)>8)drag.moved=true;if(drag.moved&&drag.shift){const r=svg.getBoundingClientRect();const bx1=Math.min(drag.sx,e.clientX)-r.left,by1=Math.min(drag.sy,e.clientY)-r.top,bx2=Math.max(drag.sx,e.clientX)-r.left,by2=Math.max(drag.sy,e.clientY)-r.top;const box=document.getElementById('selectBox');box.style.left=bx1+'px';box.style.top=by1+'px';box.style.width=(bx2-bx1)+'px';box.style.height=(by2-by1)+'px';box.classList.remove('hidden');return}if(drag.moved){camera.x=clamp(drag.cx-dx,camera.w/2,WORLD.w-camera.w/2);camera.y=clamp(drag.cy-dy,camera.h/2,WORLD.h-camera.h/2);renderCamera();}});
 svg.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;document.getElementById('selectBox').classList.add('hidden');const p=pointerWorld(e);if(d.moved&&d.shift){const x1=Math.min(d.wx,p.x),y1=Math.min(d.wy,p.y),x2=Math.max(d.wx,p.x),y2=Math.max(d.wy,p.y);const ids=(state.units||[]).filter(q=>q.side===side&&q.active&&!q.carrier&&q.x>=x1&&q.x<=x2&&q.y>=y1&&q.y<=y2).map(q=>q.id);selectedIds=ids;renderSelected();toast(ids.length>1?`已框選 ${ids.length} 支部隊`:ids.length===1?'已選取部隊':'框選範圍內沒有部隊');return}if(d.moved)return;
   let hit=null;for(const q of state.units||[])if(q.active&&!q.carrier&&q.side===side&&Math.hypot(q.x-p.x,q.y-p.y)<462){hit=q;break}
+  // Once something is selected, every subsequent click is a command for that selection — it never
+  // re-selects a different owned unit the click happens to land near (that was making "move to a spot
+  // near another of my own units" misfire as "select that unit instead"). Click empty ground / press
+  // space to clear the selection first if you want to pick a different unit by clicking on it.
   if(state.phase==='PREP'){
-    if(hit){selectedIds=[hit.id];renderSelected();toast('已選取部隊');return;}
-    if(selectedIds.length){
-      let sent=0;
-      selectedIds.forEach((id,i)=>{const q=state.units.find(x=>x.id===id);if(q&&q.side===side){const o=formationOffset(i);send({t:'deploy',id,x:p.x+o.x,y:p.y+o.y});sent++;}});
-      if(sent)toast(sent>1?`已部署 ${sent} 支部隊`:'部署位置更新');
+    if(selectedIds.length===0){
+      if(hit){selectedIds=[hit.id];renderSelected();toast('已選取部隊');}
       return;
     }
+    let sent=0;
+    selectedIds.forEach((id,i)=>{const q=state.units.find(x=>x.id===id);if(q&&q.side===side){const o=formationOffset(i);send({t:'deploy',id,x:p.x+o.x,y:p.y+o.y});sent++;}});
+    if(sent)toast(sent>1?`已部署 ${sent} 支部隊`:'部署位置更新');
     return;
   }
-  if(hit){selectedIds=[hit.id];commandMode='MOVE';document.querySelectorAll('#controls button').forEach(x=>x.classList.toggle('active',x.dataset.cmd===commandMode));renderSelected();return}
-  if(selectedIds.length===0)return;
+  if(selectedIds.length===0){
+    if(hit){selectedIds=[hit.id];commandMode='MOVE';document.querySelectorAll('#controls button').forEach(x=>x.classList.toggle('active',x.dataset.cmd===commandMode));renderSelected();}
+    return;
+  }
   const target=(state.units||[]).find(q=>q.active&&q.side!==side&&Math.hypot(q.x-p.x,q.y-p.y)<504);
   if(target&&knownEnemy(target)){selectedIds.forEach(id=>send({t:'attack',id,targetId:target.id}));toast(selectedIds.length>1?`${selectedIds.length} 支部隊已下達攻擊命令`:'攻擊命令已下達');return}
-  const facTarget=(state.facilities||[]).find(f=>f.type==='FACTORY'&&f.side!==side&&!f.destroyed&&Math.hypot(f.x-p.x,f.y-p.y)<(f.r||700)*0.95);
+  const facTarget=(state.facilities||[]).find(f=>f.type==='FACTORY'&&f.control!==side&&!f.destroyed&&Math.hypot(f.x-p.x,f.y-p.y)<(f.r||700)*0.95);
   if(facTarget){selectedIds.forEach(id=>send({t:'attack',id,facilityId:facTarget.id}));toast(selectedIds.length>1?`${selectedIds.length} 支部隊已下令砲擊敵方工廠`:'已下令砲擊敵方工廠');return}
   if(commandMode==='STOP'){selectedIds.forEach(id=>{const q=state.units.find(x=>x.id===id);if(q)send({t:'command',id,x:q.x,y:q.y});});toast('停止');return}
   selectedIds.forEach((id,i)=>{const o=formationOffset(i);send({t:'command',id,x:p.x+o.x,y:p.y+o.y});});
   toast(selectedIds.length>1?`${selectedIds.length} 支部隊已下令移動（跨海將自動徵用運輸艦，否則改走陸路走廊）`:'移動命令已下達（跨海將自動徵用運輸艦，否則改走陸路走廊）');
 });
-window.addEventListener('keydown',e=>{if(e.key==='r'||e.key==='R')fitAll();if(e.key==='+')zoomAt(.78);if(e.key==='-')zoomAt(1.28);});
+window.addEventListener('keydown',e=>{
+  if(['INPUT','TEXTAREA'].includes(document.activeElement?.tagName))return;
+  if(e.key==='r'||e.key==='R')fitAll();
+  if(e.key==='+')zoomAt(.78);
+  if(e.key==='-')zoomAt(1.28);
+  if(e.key===' '||e.code==='Space'){e.preventDefault();if(selectedIds.length){selectedIds=[];renderSelected();toast('已取消選取');}}
+});
 connect();
 </script>
 </body></html>

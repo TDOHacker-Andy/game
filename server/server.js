@@ -119,10 +119,18 @@ function findLandDetour(sx,sy,tx,ty){
   }
   return best;
 }
+// Whether the scenario's two homes are actually separated by open water at all — a navy-capable
+// scenario can still have both homes on one connected landmass (e.g. Taipei vs Kaohsiung), in which
+// case "different home territory" must never imply "needs a ferry".
+function needsSeaCrossing(){
+  if(CURRENT._needsSeaCrossing===undefined){const hp=CURRENT.homePoints;CURRENT._needsSeaCrossing=crossesWater(hp.landBlue.x,hp.landBlue.y,hp.landRed.x,hp.landRed.y);}
+  return CURRENT._needsSeaCrossing;
+}
 // Ferry is only ever offered as the fast-but-risky shortcut for a genuine cross-strait order between
-// two different home territories, and only in scenarios that have a navy at all. Any move that stays
-// within one landmass — including one that merely clips a small bay — walks instead; see findLandDetour.
-function wantsFerry(sx,sy,tx,ty){if(!CURRENT.hasNavy)return false;const a=strictLandmass(sx,sy),b=strictLandmass(tx,ty);return !!(a&&b&&a!==b);}
+// two different home territories, and only in scenarios that have a navy AND a real sea gap between
+// homes. Any move that stays within one connected landmass — including one whose straight line merely
+// clips a small bay — walks instead; see findLandDetour.
+function wantsFerry(sx,sy,tx,ty){if(!CURRENT.hasNavy||!needsSeaCrossing())return false;const a=strictLandmass(sx,sy),b=strictLandmass(tx,ty);return !!(a&&b&&a!==b);}
 function nearestCorridorRoute(sx,sy,tx,ty){
   let best=null,bd=Infinity;
   for(const c of CURRENT.corridors){
@@ -214,6 +222,21 @@ function updateFerryDispatch(s){
 function addUnit(s,side,kind,x,y,p){const u=UNIT[kind];s.units.push({id:nextUnit++,side,kind,x,y,heading:side===0?90:270,target:{x,y},path:[],pathIndex:0,personnel:p,maxPersonnel:p,ammo:100,morale:1,suppression:0,effectiveness:1,vision:u.vision,stance:'ATTACK',intent:'MOVE',reserve:false,carrier:null,cargo:[],ferryTarget:null,awaitingFerry:null,_dispatchFor:[],attackFacility:null,active:true,fireCd:0,lastDamage:0,status:'待命',kills:0});}
 function initUnits(s){for(const a of CURRENT.initUnits.blue)addUnit(s,0,...a);for(const a of CURRENT.initUnits.red)addUnit(s,1,...a);}
 function homePoint(side,kind){const hp=CURRENT.homePoints;if(UNIT[kind]?.naval)return side===0?hp.navalBlue:hp.navalRed;return side===0?hp.landBlue:hp.landRed;}
+// Newly-recruited units all rally at the same homePoint — without this they'd render stacked exactly
+// on top of each other. Spiral outward from the rally point for the nearest spot that's both the right
+// terrain (land/water) for the unit and clear of any other unit already sitting there.
+function findSpawnSpot(cx,cy,naval,s){
+  const clearOf=(x,y)=>!s.units.some(u=>u.active&&!u.carrier&&Math.hypot(u.x-x,u.y-y)<480);
+  const fits=(x,y)=>(terrainAt(x,y)==='water')===naval&&clearOf(x,y);
+  if(fits(cx,cy))return{x:cx,y:cy};
+  for(let r=350;r<=7000;r+=350){
+    for(let a=0;a<360;a+=28){
+      const rad=a*Math.PI/180,x=cx+Math.cos(rad)*r,y=cy+Math.sin(rad)*r;
+      if(fits(x,y))return{x,y};
+    }
+  }
+  return{x:cx,y:cy};
+}
 function freshFacilities(){return CURRENT.facilities.map(f=>({...f,control:f.side,capture:[0,0],hpNow:f.hp,destroyed:false}));}
 function newState(code){
   const s={room:code,scenarioId:CURRENT.id,phase:'PREP',phaseTime:PREP,time:0,result:-1,reason:'',budget:[CURRENT.startBudget||30000,CURRENT.startBudget||30000],spent:[0,0],losses:[0,0],units:[],facilities:freshFacilities(),events:[],shots:[],fx:[],weather:'CLEAR',dayPhase:'DAY',front:CURRENT.frontStart??(CURRENT.world.w/2)};
@@ -279,7 +302,8 @@ function handle(ws,m){
     const u=UNIT[String(m.kind||'INF')];if(!u)return; if(u.naval&&!CURRENT.hasNavy)return send(ws,{t:'error',message:'此情境沒有海軍'}); if(r.state.budget[p.side]<u.cost)return send(ws,{t:'error',message:'軍費不足'});
     r.state.budget[p.side]-=u.cost;r.state.spent[p.side]+=u.cost;
     const hp=homePoint(p.side,String(m.kind));
-    addUnit(r.state,p.side,String(m.kind),hp.x,hp.y,Math.round(u.max*.78));const q=r.state.units.at(-1);q.status='待部署';q.reserve=false;q.active=true;event(r.state,`${sideLabel(p.side)} 徵募${u.name}`,'build');snap(r);return;
+    const spot=findSpawnSpot(hp.x,hp.y,!!u.naval,r.state);
+    addUnit(r.state,p.side,String(m.kind),spot.x,spot.y,Math.round(u.max*.78));const q=r.state.units.at(-1);q.status='待部署';q.reserve=false;q.active=true;event(r.state,`${sideLabel(p.side)} 徵募${u.name}`,'build');snap(r);return;
   }
   if(t==='command'&&r.state.phase==='BATTLE'){
     const q=own(r,p,m.id);if(!q)return;if(q.carrier)return send(ws,{t:'error',message:'部隊正在海運途中，無法下令'});
@@ -302,7 +326,7 @@ function handle(ws,m){
     cancelFerryWait(r.state,q);
     if(m.facilityId!=null){
       const f=r.state.facilities.find(x=>x.id===m.facilityId);
-      if(!f||f.type!=='FACTORY'||f.destroyed||f.side===p.side)return send(ws,{t:'error',message:'目標無效'});
+      if(!f||f.type!=='FACTORY'||f.destroyed||f.control===p.side)return send(ws,{t:'error',message:'目標無效'});
       if(isLandUnit(q)){
         if(!onLand(f.x,f.y))return;
         if(onMid(f.x,f.y)||onMid(q.x,q.y)){if(!tryFerry(r.state,q,f.x,f.y))return send(ws,{t:'error',message:'需要運輸艦接應才能攻擊該目標'});return snap(r);}
@@ -390,7 +414,7 @@ function combat(s,dt){
     }
   }
 }
-function updateFacilities(s,dt){for(const f of s.facilities){if(f.destroyed)continue;if(f.type==='FACTORY'&&CURRENT.mode!=='conquest')continue;const count=[0,0];for(const q of s.units)if(q.active&&!q.reserve&&Math.hypot(q.x-f.x,q.y-f.y)<f.r*.62&&isLandUnit(q))count[q.side]++;if(count[0]&&count[1])continue;const owner=count[0]?0:count[1]?1:-1;if(owner<0)continue;if(f.control!==owner){f.capture[owner]=clamp(f.capture[owner]+dt*(count[owner]*1.6),0,100);f.capture[1-owner]=Math.max(0,f.capture[1-owner]-dt*.7);if(f.capture[owner]>=100){f.control=owner;event(s,`${f.name} 被${sideLabel(owner)}攻佔`,'facility');}}}}
+function updateFacilities(s,dt){for(const f of s.facilities){if(f.destroyed)continue;const count=[0,0];for(const q of s.units)if(q.active&&!q.reserve&&Math.hypot(q.x-f.x,q.y-f.y)<f.r*.62&&isLandUnit(q))count[q.side]++;if(count[0]&&count[1])continue;const owner=count[0]?0:count[1]?1:-1;if(owner<0)continue;if(f.control!==owner){f.capture[owner]=clamp(f.capture[owner]+dt*(count[owner]*1.6),0,100);f.capture[1-owner]=Math.max(0,f.capture[1-owner]-dt*.7);if(f.capture[owner]>=100){f.control=owner;event(s,`${f.name} 被${sideLabel(owner)}攻佔`,'facility');}}}}
 function updateFactories(s,dt){
   for(const f of s.facilities){
     if(f.type!=='FACTORY'||f.destroyed)continue;
@@ -433,8 +457,31 @@ function aiFerryStaging(s){
     if(tryFerry(s,u,u._invade.x,u._invade.y))u._invade=null;
   }
 }
+// AI never spent its own budget before this — it fought with whatever it started with and only ever
+// got weaker as losses mounted, which made it trivially easy once the player ground down the opening
+// force. Give it the same rally-and-reinforce loop a human player would use via the buy button.
+function aiEconomy(r,dt){
+  if(!r.ai||!r.started||r.finished||r.state.phase!=='BATTLE')return;const s=r.state;
+  r.aiBuyCooldown=(r.aiBuyCooldown??6)-dt;
+  if(r.aiBuyCooldown>0)return;
+  r.aiBuyCooldown=5+Math.random()*6;
+  const affordable=Object.keys(UNIT).filter(k=>(!UNIT[k].naval||CURRENT.hasNavy)&&UNIT[k].cost<=s.budget[1]);
+  if(!affordable.length)return;
+  const kind=affordable[Math.floor(Math.random()*affordable.length)];
+  const u=UNIT[kind];
+  s.budget[1]-=u.cost;s.spent[1]+=u.cost;
+  const hp=homePoint(1,kind);
+  const spot=findSpawnSpot(hp.x,hp.y,!!u.naval,s);
+  addUnit(s,1,kind,spot.x,spot.y,Math.round(u.max*.78));
+  const q=s.units.at(-1);q.status='待部署';q.reserve=false;q.active=true;
+  event(s,`${sideLabel(1)} 徵募${u.name}`,'build');
+}
 function aiInvasionPlanner(r,dt){
   if(!CURRENT.hasNavy||!r.ai||!r.started||r.finished||r.state.phase!=='BATTLE')return;const s=r.state;
+  // Some navy-capable scenarios (e.g. Taipei vs Kaohsiung) have both homes on one connected landmass —
+  // there's no strait to cross, so a scripted "ferry an invasion wave across" plan makes no sense there;
+  // ordinary aiThink() already walks units straight to contested facilities in that case.
+  if(!needsSeaCrossing())return;
   r.invasionCooldown=(r.invasionCooldown??25)-dt;
   aiFerryStaging(s);
   if(r.invasionCooldown>0)return;
@@ -483,7 +530,7 @@ function tick(r,dt){
   s.dayPhase=s.time<dayEnd?'DAY':s.time<duskEnd?'DUSK':s.time<nightEnd?'NIGHT':'DAWN';
   s.weather=Math.floor(s.time/180)%5===3?'RAIN':'CLEAR';
   for(const q of s.units)if(q.active)stepMove(s,q,dt);
-  updateFerries(s);updateFerryDispatch(s);combat(s,dt);updateFacilities(s,dt);updateFactories(s,dt);updateFront(s,dt);aiThink(r,dt);aiInvasionPlanner(r,dt);
+  updateFerries(s);updateFerryDispatch(s);combat(s,dt);updateFacilities(s,dt);updateFactories(s,dt);updateFront(s,dt);aiThink(r,dt);aiEconomy(r,dt);aiInvasionPlanner(r,dt);
   for(const fx of s.fx)fx.t-=dt;s.fx=s.fx.filter(f=>f.t>0);
   const w=victory(s);
   if(w>=0)return finish(r,w,`${sideLabel(1-w)}全滅／主城失守`);
