@@ -1,6 +1,7 @@
 Unit sprites in this folder:
 
-- Kenney.nl "Top-down Shooter" pack (inf.png, recon.png, sf.png, at.png, fire.png)
+- Kenney.nl "Top-down Shooter" pack, recolored (blue/red team tint) from the originals:
+  inf_blue/red.png, recon_blue/red.png, sf_blue/red.png, at_blue/red.png, fire_blue/red.png
 - Kenney.nl "Top-Down Tanks" pack (tank_blue.png, tank_red.png, barrel_blue.png, barrel_red.png)
   License: CC0 1.0 (public domain) - https://kenney.nl/assets
   Free to use in personal, educational and commercial projects. No attribution required (credited here voluntarily).

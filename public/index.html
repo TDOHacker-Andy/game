@@ -142,7 +142,7 @@ const UNIT={
  PATROL:{name:'巡邏艇',short:'巡',cost:1200,max:24,role:'近岸巡防',naval:true},FRIGATE:{name:'護衛艦',short:'艦',cost:2600,max:40,role:'海上火力',naval:true},TRANSPORT:{name:'運輸艦',short:'運',cost:2200,max:20,role:'跨海運輸（可搭載3隊陸軍）',naval:true}
 };
 const SPRITE={
- INF:{file:'inf.png',w:260,h:215},RECON:{file:'recon.png',w:260,h:219},SF:{file:'sf.png',w:260,h:228},AT:{file:'at.png',w:260,h:228},FIRE:{file:'fire.png',w:260,h:228}
+ INF:{file:'inf',w:260,h:215},RECON:{file:'recon',w:260,h:219},SF:{file:'sf',w:260,h:228},AT:{file:'at',w:260,h:228},FIRE:{file:'fire',w:260,h:228}
 };
 // Scenario is loaded from the server at room-creation time (see applyScenario()) — landmasses/
 // corridors/passes/sides/labels all come from scenario.* instead of hardcoded map constants, so the
@@ -350,10 +350,10 @@ function drawUnit(g,q){
   }else if(SPRITE[q.kind]){
     const heading=q.heading||90;
     gg.append(E('ellipse',{cx:0,cy:80,rx:110,ry:38,fill:'#000',opacity:.28}));
-    gg.append(E('ellipse',{cx:0,cy:70,rx:120,ry:44,fill:c,opacity:.5}));
+    gg.append(E('ellipse',{cx:0,cy:72,rx:132,ry:52,fill:c,opacity:.65}));
     const sg=E('g',{transform:`rotate(${heading-90})`});
     const sp=SPRITE[q.kind];
-    sg.append(E('image',{href:`/assets/units/${sp.file}`,x:-sp.w/2,y:-sp.h/2,width:sp.w,height:sp.h,style:'image-rendering:pixelated'}));
+    sg.append(E('image',{href:`/assets/units/${sp.file}_${q.side===0?'blue':'red'}.png`,x:-sp.w/2,y:-sp.h/2,width:sp.w,height:sp.h,style:'image-rendering:pixelated'}));
     gg.append(sg);
   }
   if(q.side===0){gg.append(E('circle',{cx:-193,cy:-84,r:42,fill:'none',stroke:'#eaf6ff','stroke-width':19}));}else{gg.append(E('circle',{cx:-193,cy:-84,r:36,fill:'#ffe1c8'}));}
