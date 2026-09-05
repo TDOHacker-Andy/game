@@ -3,60 +3,62 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>TACTICAL BORDER · 多情境戰場 v32</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#071015;--panel:#101c21e8;--line:#38525e;--text:#eef4f6;--muted:#9bb0b9;--blue:#4ea8ff;--red:#ff5e62;--gold:#e4bd62;--green:#5fd08c}
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050b0f;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif}
-button{font:inherit;color:inherit;cursor:pointer;border:1px solid #3b5662;background:#14242b;border-radius:12px;padding:9px 13px;transition:.15s transform,.15s background,.15s border-color}.hidden{display:none!important}
-#app{position:fixed;inset:0;background:#071015}
-#battle{position:absolute;inset:0;overflow:hidden;background:linear-gradient(#0a151a,#081116)}
+:root{--bg:#120d08;--panel:#241a10e8;--line:#5c4530;--text:#f2e8d5;--muted:#b5a488;--blue:#5b9bdb;--red:#e2665a;--gold:#d9a842;--green:#7cb383;--display:'Noto Serif TC',"PingFang TC",serif}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0c0906;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif}
+button{font:inherit;color:inherit;cursor:pointer;border:1px solid #5c4530;background:#2e2116;border-radius:12px;padding:9px 13px;transition:.15s transform,.15s background,.15s border-color}.hidden{display:none!important}
+#app{position:fixed;inset:0;background:#120d08}
+#battle{position:absolute;inset:0;overflow:hidden;background:linear-gradient(#140f0a,#100c07)}
 #map{position:absolute;inset:0;width:100%;height:100%;touch-action:none;user-select:none;cursor:crosshair}
-.hudTop{position:absolute;top:14px;left:14px;right:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none;z-index:20}.hudBlock{background:#071115db;border:1px solid #314a56;box-shadow:0 10px 30px #0008;border-radius:14px;padding:10px 14px;backdrop-filter:blur(10px);pointer-events:auto}.title{font-weight:800;letter-spacing:.04em}.tiny{font-size:12px;color:var(--muted)}.score{min-width:340px;text-align:center}.score .bar{height:9px;background:#1d2a31;border-radius:999px;overflow:hidden;margin-top:6px}.score .fill{height:100%;width:50%;background:linear-gradient(90deg,var(--blue) 0 50%,var(--red) 50%)}
-#battle .controls{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;background:#081217ec;border:1px solid #38525e;padding:10px 12px;border-radius:16px;box-shadow:0 12px 36px #000a;z-index:20}.controls button{min-width:84px;background:#122128}.controls button.active{border-color:var(--gold);box-shadow:0 0 0 1px #e4bd6233 inset;background:#1a2b2c}.controls button.attack{border-color:#9f454a}.controls button.danger{border-color:#9f454a;background:#2a1315;color:#ffb4b4}.controls button.danger.armed{background:#5c1a1e;border-color:#ff5d60;box-shadow:0 0 0 1px #ff5d6055 inset}
-#battleBuy{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);z-index:21;background:#081217f5;border:1px solid #38525e;border-radius:16px;box-shadow:0 12px 36px #000a;padding:14px 16px;width:min(520px,calc(100vw - 32px))}.battleBuyHead{font-weight:900;color:var(--gold);margin-bottom:10px;font-size:14px}.battleBuyGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.battleBuyGrid button{min-width:0;text-align:left;padding:8px 10px;background:#102028}.battleBuyGrid button strong{display:block;font-size:13px}.battleBuyGrid button span{display:block;font-size:11px;color:#e4bd62;margin-top:3px}.battleBuyGrid button:disabled{opacity:.4;cursor:not-allowed}.battleBuyNote{margin-top:10px;font-size:11px;color:#8fa4ad}
-#selected{position:absolute;left:16px;bottom:16px;width:min(360px,calc(100vw - 32px));background:#071115ed;border:1px solid #415965;border-radius:16px;padding:13px 15px;z-index:21;box-shadow:0 12px 36px #000b;backdrop-filter:blur(10px);pointer-events:none}.selectedTop{display:flex;align-items:center;gap:10px}.badge{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:#13232a;border:1px solid #41606d;font-weight:900}.hp{height:10px;background:#1c2b30;border-radius:99px;overflow:hidden;margin-top:8px}.hp>i{display:block;height:100%;background:linear-gradient(90deg,#46c988,#d5d85f,#ff5b5f)}.statLine{display:flex;justify-content:space-between;margin-top:6px;color:#b3c4ca;font-size:12px}
-#statusToast{position:absolute;top:82px;left:50%;transform:translateX(-50%);padding:8px 13px;background:#091319dd;border:1px solid #405b67;border-radius:999px;font-size:13px;z-index:22;opacity:0;transition:.2s opacity;pointer-events:none}.show{opacity:1!important}
-#zoom{position:absolute;right:16px;bottom:16px;display:flex;gap:7px;z-index:31}.zoomBtn{width:48px;height:48px;font-size:22px;padding:0;display:grid;place-items:center;background:#0a151aee}.zoomBtn.fit{width:74px;font-size:13px}
-#minimap{position:absolute;right:16px;bottom:82px;width:230px;height:142px;background:#050b0fe0;border:1px solid #3b5662;border-radius:12px;overflow:hidden;z-index:31;box-shadow:0 10px 28px #000a;cursor:pointer}#minimap svg{width:100%;height:100%;display:block}#minimap .miniLabel{position:absolute;top:4px;left:8px;font-size:10px;color:var(--muted);pointer-events:none;letter-spacing:.05em}
+.hudTop{position:absolute;top:14px;left:14px;right:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none;z-index:20}.hudBlock{background:#1c150ddb;border:1px solid #6b4f34;box-shadow:0 10px 30px #0008;border-radius:14px;padding:10px 14px;backdrop-filter:blur(10px);pointer-events:auto}.title{font-family:var(--display);font-weight:700;letter-spacing:.04em}.tiny{font-size:12px;color:var(--muted)}.score{min-width:340px;text-align:center}.score .bar{height:9px;background:#2e2318;border-radius:999px;overflow:hidden;margin-top:6px}.score .fill{height:100%;width:50%;background:linear-gradient(90deg,var(--blue) 0 50%,var(--red) 50%)}
+#battle .controls{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;background:#1c150dec;border:1px solid #5c4530;padding:10px 12px;border-radius:16px;box-shadow:0 12px 36px #000a;z-index:20}.controls button{min-width:84px;background:#2c2015}.controls button.active{border-color:var(--gold);box-shadow:0 0 0 1px #d9a84233 inset;background:#3a2b18}.controls button.attack{border-color:#a5544a}.controls button.danger{border-color:#a5544a;background:#2e1712;color:#ffb4a8}.controls button.danger.armed{background:#5c241a;border-color:#e2665a;box-shadow:0 0 0 1px #e2665a55 inset}
+#battleBuy{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);z-index:21;background:#1c150df5;border:1px solid #5c4530;border-radius:16px;box-shadow:0 12px 36px #000a;padding:14px 16px;width:min(520px,calc(100vw - 32px))}.battleBuyHead{font-family:var(--display);font-weight:900;color:var(--gold);margin-bottom:10px;font-size:14px}.battleBuyGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.battleBuyGrid button{min-width:0;text-align:left;padding:8px 10px;background:#241a10}.battleBuyGrid button strong{display:block;font-size:13px}.battleBuyGrid button span{display:block;font-size:11px;color:#d9a842;margin-top:3px}.battleBuyGrid button:disabled{opacity:.4;cursor:not-allowed}.battleBuyNote{margin-top:10px;font-size:11px;color:#ab9878}
+#selected{position:absolute;left:16px;bottom:16px;width:min(360px,calc(100vw - 32px));background:#1c150ded;border:1px solid #6b5138;border-radius:16px;padding:13px 15px;z-index:21;box-shadow:0 12px 36px #000b;backdrop-filter:blur(10px);pointer-events:none}.selectedTop{display:flex;align-items:center;gap:10px}.badge{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:#2a1f14;border:1px solid #6b5138;font-weight:900}.hp{height:10px;background:#2a2014;border-radius:99px;overflow:hidden;margin-top:8px}.hp>i{display:block;height:100%;background:linear-gradient(90deg,#5fae6c,#d5c15f,#e2665a)}.statLine{display:flex;justify-content:space-between;margin-top:6px;color:#c9b99a;font-size:12px}
+#statusToast{position:absolute;top:82px;left:50%;transform:translateX(-50%);padding:8px 13px;background:#1c150ddd;border:1px solid #6b4f34;border-radius:999px;font-size:13px;z-index:22;opacity:0;transition:.2s opacity;pointer-events:none}.show{opacity:1!important}
+#zoom{position:absolute;right:16px;bottom:16px;display:flex;gap:7px;z-index:31}.zoomBtn{width:48px;height:48px;font-size:22px;padding:0;display:grid;place-items:center;background:#241a10ee}.zoomBtn.fit{width:74px;font-size:13px}
+#minimap{position:absolute;right:16px;bottom:82px;width:230px;height:142px;background:#140f0ae0;border:1px solid #5c4530;border-radius:12px;overflow:hidden;z-index:31;box-shadow:0 10px 28px #000a;cursor:pointer}#minimap svg{width:100%;height:100%;display:block}#minimap .miniLabel{position:absolute;top:4px;left:8px;font-size:10px;color:var(--muted);pointer-events:none;letter-spacing:.05em}
 #prep{position:absolute;inset:0;z-index:30;pointer-events:none}
-#eventLog{position:absolute;top:90px;left:14px;width:300px;max-height:170px;overflow:hidden;z-index:19;background:#071115c7;border:1px solid #2c4048;border-radius:12px;padding:8px 12px;pointer-events:none}
-.logRow{font-size:12px;color:#b9c8cd;padding:3px 0;border-bottom:1px solid #1c2a30}
+#eventLog{position:absolute;top:90px;left:14px;width:300px;max-height:170px;overflow:hidden;z-index:19;background:#1c150dc7;border:1px solid #4a3620;border-radius:12px;padding:8px 12px;pointer-events:none}
+.logRow{font-size:12px;color:#d3c3a4;padding:3px 0;border-bottom:1px solid #2e2416}
 .logRow:last-child{border-bottom:none}
 #statusToast.err{background:#3a1418dd;border-color:#7a3038;color:#ffd7d2}
-#selectBox{position:absolute;border:2px dashed #f5dc79;background:#f5dc7922;z-index:18;pointer-events:none}.prepPanel{position:absolute;top:18px;left:18px;bottom:18px;right:264px;display:grid;grid-template-columns:360px minmax(0,1fr) 360px;gap:12px;pointer-events:none}.prepLeft,.prepRight{background:linear-gradient(180deg,#0b171ce8,#071116e8);border:1px solid #3b5662;border-radius:18px;box-shadow:0 18px 50px #0008;overflow:hidden;pointer-events:auto}.prepLeft{padding:18px;overflow:auto}.prepCenter{display:flex;flex-direction:column;justify-content:space-between;padding:18px;background:transparent;pointer-events:none}.prepRight{padding:18px;display:flex;flex-direction:column;justify-content:space-between}.prepTitle{font-size:27px;font-weight:900}.prepSub{color:var(--muted);margin-top:5px}.budget{font-size:24px;font-weight:900;color:var(--gold);margin:16px 0}.buyGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.buy{min-height:92px;text-align:left;padding:12px;position:relative;background:#102028}.buy strong{display:block;font-size:16px}.buy span{display:block;color:#a8bbc2;font-size:12px;margin-top:5px;max-width:88%}.buy em{position:absolute;right:10px;bottom:10px;color:var(--gold);font-style:normal;font-weight:800}.buy:disabled{opacity:.4;cursor:not-allowed}.roster{display:grid;gap:8px;max-height:58vh;overflow:auto}.row{display:flex;align-items:center;justify-content:space-between;border:1px solid #263d46;background:#0d1b21;border-radius:10px;padding:10px 12px}.row small{color:#9db0b7}.readyBtn{width:100%;padding:14px;font-size:18px;font-weight:900;background:#17384d;border-color:#5b8daa}.readyBtn:disabled{opacity:.45;cursor:not-allowed}.note{font-size:12px;color:#8fa4ad;line-height:1.65}.prepCenterHint{align-self:flex-start;background:#071115d9;border:1px solid #38525e;border-radius:12px;padding:10px 13px;font-weight:700}.deployTip{color:#b8c7cc;font-size:12px;line-height:1.5}.removeBtn{margin-left:8px}
-.prepCountdown{display:inline-block;margin-top:10px;padding:6px 14px;border-radius:999px;background:#132a33;border:1px solid #3d6472;color:var(--gold);font-weight:900;font-size:14px}
-#resultScreen{position:absolute;inset:0;z-index:40;background:#050b0fe6;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
-.resultPanel{position:relative;overflow:hidden;background:linear-gradient(180deg,#0b171ce8,#071116e8);border:1px solid #3b5662;border-radius:20px;box-shadow:0 24px 60px #000a;padding:40px 52px;text-align:center;min-width:340px;animation:resultIn .5s cubic-bezier(.2,.85,.25,1)}
-.resultPanel::before{content:'';position:absolute;inset:-50%;background:radial-gradient(circle,var(--rc,#4ea8ff) 0%,transparent 62%);opacity:.16;pointer-events:none}
-.resultPanel.win{--rc:#4ea8ff}.resultPanel.lose{--rc:#ff5e62}
+#selectBox{position:absolute;border:2px dashed #d9a842;background:#d9a84222;z-index:18;pointer-events:none}.prepPanel{position:absolute;top:18px;left:18px;bottom:18px;right:264px;display:grid;grid-template-columns:360px minmax(0,1fr) 360px;gap:12px;pointer-events:none}.prepLeft,.prepRight{background:linear-gradient(180deg,#241a10e8,#150f0ae8);border:1px solid #5c4530;border-radius:18px;box-shadow:0 18px 50px #0008;overflow:hidden;pointer-events:auto}.prepLeft{padding:18px;overflow:auto}.prepCenter{display:flex;flex-direction:column;justify-content:space-between;padding:18px;background:transparent;pointer-events:none}.prepRight{padding:18px;display:flex;flex-direction:column;justify-content:space-between}.prepTitle{font-family:var(--display);font-size:27px;font-weight:900}.prepSub{color:var(--muted);margin-top:5px}.budget{font-size:24px;font-weight:900;color:var(--gold);margin:16px 0}.buyGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.buy{min-height:92px;text-align:left;padding:12px;position:relative;background:#291e13}.buy strong{display:block;font-size:16px}.buy span{display:block;color:#c2b090;font-size:12px;margin-top:5px;max-width:88%}.buy em{position:absolute;right:10px;bottom:10px;color:var(--gold);font-style:normal;font-weight:800}.buy:disabled{opacity:.4;cursor:not-allowed}.roster{display:grid;gap:8px;max-height:58vh;overflow:auto}.row{display:flex;align-items:center;justify-content:space-between;border:1px solid #4a3620;background:#241a10;border-radius:10px;padding:10px 12px}.row small{color:#b5a488}.readyBtn{width:100%;padding:14px;font-size:18px;font-weight:900;background:#5c4023;border-color:#a67c3f}.readyBtn:disabled{opacity:.45;cursor:not-allowed}.note{font-size:12px;color:#ab9878;line-height:1.65}.prepCenterHint{align-self:flex-start;background:#1c150dd9;border:1px solid #5c4530;border-radius:12px;padding:10px 13px;font-weight:700}.deployTip{color:#d3c3a4;font-size:12px;line-height:1.5}.removeBtn{margin-left:8px}
+.counterDiagram{align-self:center;background:#1c150dd9;border:1px solid #5c4530;border-radius:14px;padding:12px 16px 8px;text-align:center;pointer-events:auto}.counterCaption{color:#d3c3a4;font-size:12px;margin-top:4px}
+.prepCountdown{display:inline-block;margin-top:10px;padding:6px 14px;border-radius:999px;background:#3a2b18;border:1px solid #7a5a35;color:var(--gold);font-weight:900;font-size:14px}
+#resultScreen{position:absolute;inset:0;z-index:40;background:#0c0906e6;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.resultPanel{position:relative;overflow:hidden;background:linear-gradient(180deg,#241a10e8,#150f0ae8);border:1px solid #5c4530;border-radius:20px;box-shadow:0 24px 60px #000a;padding:40px 52px;text-align:center;min-width:340px;animation:resultIn .5s cubic-bezier(.2,.85,.25,1)}
+.resultPanel::before{content:'';position:absolute;inset:-50%;background:radial-gradient(circle,var(--rc,#5b9bdb) 0%,transparent 62%);opacity:.16;pointer-events:none}
+.resultPanel.win{--rc:#5b9bdb}.resultPanel.lose{--rc:#e2665a}
 @keyframes resultIn{from{opacity:0;transform:scale(.86) translateY(22px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .resultBadge{position:relative;font-size:58px;line-height:1;margin-bottom:8px;filter:drop-shadow(0 8px 20px #0009)}
-.resultTitle{position:relative;font-size:44px;font-weight:900;letter-spacing:.04em}
-.resultTitle.win{color:var(--blue);text-shadow:0 0 24px #4ea8ff55}.resultTitle.lose{color:var(--red);text-shadow:0 0 24px #ff5e6255}
+.resultTitle{position:relative;font-family:var(--display);font-size:44px;font-weight:900;letter-spacing:.04em}
+.resultTitle.win{color:var(--blue);text-shadow:0 0 24px #5b9bdb55}.resultTitle.lose{color:var(--red);text-shadow:0 0 24px #e2665a55}
 .resultReason{position:relative;color:var(--muted);margin-top:8px;font-size:14px}
-.resultStats{position:relative;margin:24px 0;display:grid;gap:2px;text-align:left;background:#0d1b21;border:1px solid #263d46;border-radius:14px;padding:6px 20px;min-width:280px}
-.resultStats .row{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#cdd9dd;padding:9px 0;border-bottom:1px solid #17262c}
+.resultStats{position:relative;margin:24px 0;display:grid;gap:2px;text-align:left;background:#241a10;border:1px solid #4a3620;border-radius:14px;padding:6px 20px;min-width:280px}
+.resultStats .row{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#d3c3a4;padding:9px 0;border-bottom:1px solid #34281a}
 .resultStats .row:last-child{border-bottom:none}
 .resultStats .row span:first-child{color:var(--muted)}
-.resultStats .row span:last-child{font-weight:900;font-size:14px;color:#eef4f6}
-#lobby{position:absolute;inset:0;z-index:50;background:#050b0ff2;display:flex;align-items:center;justify-content:center}
-.lobbyPanel{background:linear-gradient(180deg,#0b171ce8,#071116e8);border:1px solid #3b5662;border-radius:22px;box-shadow:0 24px 60px #000a;padding:40px 46px;text-align:center;width:min(540px,92vw)}
+.resultStats .row span:last-child{font-weight:900;font-size:14px;color:#f2e8d5}
+#lobby{position:absolute;inset:0;z-index:50;background:#0c0906f2;display:flex;align-items:center;justify-content:center}
+.lobbyPanel{background:linear-gradient(180deg,#241a10e8,#150f0ae8);border:1px solid #5c4530;border-radius:22px;box-shadow:0 24px 60px #000a;padding:40px 46px;text-align:center;width:min(540px,92vw)}
 .scenarioGrid{display:grid;gap:10px;margin-bottom:18px;text-align:left;max-height:52vh;overflow:auto}
-.scenarioCard{background:#0d1b21;border:1px solid #2c4048;border-radius:14px;padding:14px 16px;cursor:pointer;transition:.15s border-color,.15s background}
-.scenarioCard:hover{border-color:#5b8daa;background:#122128}
-.scenarioCard .scName{font-weight:900;font-size:16px}
-.scenarioCard .scMode{display:inline-block;margin-left:8px;font-size:11px;padding:2px 8px;border-radius:999px;background:#17384d;color:#9fd0ff;vertical-align:middle}
-.scenarioCard .scMode.conquest{background:#4d2617;color:#ffc79f}
+.scenarioCard{background:#241a10;border:1px solid #4a3620;border-radius:14px;padding:14px 16px;cursor:pointer;transition:.15s border-color,.15s background}
+.scenarioCard:hover{border-color:#a67c3f;background:#2e2115}
+.scenarioCard .scName{font-family:var(--display);font-weight:900;font-size:16px}
+.scenarioCard .scMode{display:inline-block;margin-left:8px;font-size:11px;padding:2px 8px;border-radius:999px;background:#5c4023;color:#c9deff;vertical-align:middle}
+.scenarioCard .scMode.conquest{background:#5c2e1a;color:#ffc79f}
 .scenarioCard .scDesc{color:var(--muted);font-size:12px;margin-top:6px;line-height:1.5}
-.lobbyTitle{font-size:30px;font-weight:900;letter-spacing:.04em}
+.lobbyTitle{font-family:var(--display);font-size:32px;font-weight:900;letter-spacing:.06em}
 .lobbySub{color:var(--muted);margin-top:6px;font-size:14px;margin-bottom:26px}
-.lobbyBtn{width:100%;padding:15px;font-size:16px;font-weight:900;background:#17384d;border-color:#5b8daa;margin-bottom:12px}
+.lobbyBtn{width:100%;padding:15px;font-size:16px;font-weight:900;background:#5c4023;border-color:#a67c3f;margin-bottom:12px}
 .lobbyDivider{color:var(--muted);font-size:12px;margin:14px 0}
 .lobbyJoinRow{display:flex;gap:8px}
-.lobbyJoinRow input{flex:1;background:#0d1b21;border:1px solid #3b5662;border-radius:12px;color:var(--text);padding:12px 14px;font-size:16px;text-align:center;letter-spacing:.1em;min-width:0}
-.lobbyJoinRow button{background:#132a33;border-color:#3d6472;font-weight:900}
-.lobbyCode{font-size:38px;font-weight:900;letter-spacing:.12em;color:var(--gold);margin:14px 0;padding:14px;background:#0d1b21;border:1px solid #3d6472;border-radius:14px;cursor:pointer}
+.lobbyJoinRow input{flex:1;background:#241a10;border:1px solid #5c4530;border-radius:12px;color:var(--text);padding:12px 14px;font-size:16px;text-align:center;letter-spacing:.1em;min-width:0}
+.lobbyJoinRow button{background:#3a2b18;border-color:#7a5a35;font-weight:900}
+.lobbyCode{font-size:38px;font-weight:900;letter-spacing:.12em;color:var(--gold);margin:14px 0;padding:14px;background:#241a10;border:1px solid #7a5a35;border-radius:14px;cursor:pointer}
 .lobbyWaitNote{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:18px}
-@media(max-width:900px){.prepPanel{grid-template-columns:1fr;height:92vh}.prepRight{border-left:0;border-top:1px solid #29404a}.score{min-width:0}.score .tiny{display:none}.hudTop .hideSmall{display:none}.controls button{min-width:62px;padding:8px 9px}}
+@media(max-width:900px){.prepPanel{grid-template-columns:1fr;height:92vh}.prepRight{border-left:0;border-top:1px solid #4a3620}.score{min-width:0}.score .tiny{display:none}.hudTop .hideSmall{display:none}.controls button{min-width:62px;padding:8px 9px}}
 </style>
 </head>
 <body>
@@ -95,11 +97,23 @@ button{font:inherit;color:inherit;cursor:pointer;border:1px solid #3b5662;backgr
     </div>
     <div class="prepCenter">
       <div class="prepCenterHint">拖曳地圖可移動視角・點擊部隊選取・拖曳部隊可部署</div>
+      <div class="counterDiagram">
+        <svg viewBox="0 0 240 200" width="200">
+          <defs><marker id="ctArrow" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#d9a842"/></marker></defs>
+          <path d="M120,34 Q205,80 205,158" fill="none" stroke="#d9a842" stroke-width="3" marker-end="url(#ctArrow)"/>
+          <path d="M205,168 Q120,208 35,168" fill="none" stroke="#d9a842" stroke-width="3" marker-end="url(#ctArrow)"/>
+          <path d="M35,158 Q35,80 112,34" fill="none" stroke="#d9a842" stroke-width="3" marker-end="url(#ctArrow)"/>
+          <circle cx="120" cy="28" r="26" fill="#5c4023" stroke="#d9a842" stroke-width="2"/><text x="120" y="35" text-anchor="middle" font-size="18" font-weight="900" fill="#f2e8d5">甲</text>
+          <circle cx="210" cy="168" r="26" fill="#5c4023" stroke="#d9a842" stroke-width="2"/><text x="210" y="175" text-anchor="middle" font-size="18" font-weight="900" fill="#f2e8d5">特</text>
+          <circle cx="30" cy="168" r="26" fill="#5c4023" stroke="#d9a842" stroke-width="2"/><text x="30" y="175" text-anchor="middle" font-size="18" font-weight="900" fill="#f2e8d5">反</text>
+        </svg>
+        <div class="counterCaption">裝甲部隊 剋 特戰部隊 剋 反裝甲部隊 剋 裝甲部隊</div>
+      </div>
       <div class="deployTip" id="deployTip">陸軍只能部署在己方領土；海軍需部署在海上。工廠會被動累積軍費，一旦被摧毀就永久消失；雷達站／哨塔可擴大己方偵知範圍。點擊「全圖」可以快速查看整個戰區。</div>
     </div>
     <div class="prepRight">
       <div><div style="font-size:18px;font-weight:900">開戰前檢查</div>
-        <div class="note" style="margin-top:12px">① 已購買部隊會立即出現在地圖。<br>② 點擊或拖曳部署到自己的本島／海域。<br>③ 不需要任何編組面板；進入戰鬥後完全自己操控。<br>④ 戰鬥開始後建軍 UI 消失，只留下地圖與必要 HUD。<br>⑤ 觸控板：單指拖曳平移；點己方部隊選取；點地面下令；Shift＋拖曳框選。<br>⑥ 陸軍跨海會自動徵用附近運輸艦；若沒有運輸艦待命，會自動改走南／北陸路走廊。<br>⑦ 派兵攻擊敵方工廠可將其摧毀，永久斷絕對方的被動軍費收入。</div>
+        <div class="note" style="margin-top:12px">① 已購買部隊會立即出現在地圖。<br>② 點擊或拖曳部署到自己的領土。<br>③ 不需要任何編組面板；進入戰鬥後完全自己操控。<br>④ 戰鬥開始後建軍 UI 消失，只留下地圖與必要 HUD。<br>⑤ 觸控板：單指拖曳平移；點己方部隊選取（即使已選別的部隊也一定能切換）；點地面下令；Shift＋拖曳框選；空白鍵取消選取。<br>⑥ 據點可以「駐留佔領」（部隊在旁不受阻擋地停留）或「砲擊攻陷」（打光血量直接易主）拿下，任選其一。<br>⑦ 兵種克制：穿甲需≥目標裝甲才會造成完整傷害，否則大幅減傷——反裝甲部隊穿甲最高、是戰車剋星；一般步兵穿甲低，難以打穿裝甲目標，建議跟戰車／反裝甲混編出擊。</div>
       </div>
       <button class="readyBtn" id="ready">✓ 準備開始</button>
     </div>
@@ -137,9 +151,12 @@ button{font:inherit;color:inherit;cursor:pointer;border:1px solid #3b5662;backgr
 <script>
 const S=2.1;
 let WORLD={w:45000,h:42000};
+// armor/pen mirror the server's combat rule: a hit only deals full damage when the attacker's pen is
+// >= the target's armor, otherwise it's cut to ~18% — this is what actually drives which unit counters
+// which, so the UI surfaces both numbers instead of leaving the counter system invisible.
 const UNIT={
- INF:{name:'突擊兵',short:'突',cost:700,max:180,role:'主力／佔領'},TANK:{name:'裝甲部隊',short:'甲',cost:2500,max:60,role:'肉盾／突破'},RECON:{name:'偵察兵',short:'偵',cost:950,max:90,role:'4格視野／情報'},SF:{name:'特戰部隊',short:'特',cost:1550,max:90,role:'高速／側翼'},AT:{name:'反裝甲部隊',short:'反',cost:1050,max:75,role:'伏擊／反裝甲'},FIRE:{name:'火力支援',short:'火',cost:1800,max:40,role:'遠程／壓制'},
- PATROL:{name:'巡邏艇',short:'巡',cost:1200,max:24,role:'近岸巡防',naval:true},FRIGATE:{name:'護衛艦',short:'艦',cost:2600,max:40,role:'海上火力',naval:true},TRANSPORT:{name:'運輸艦',short:'運',cost:2200,max:20,role:'跨海運輸（可搭載3隊陸軍）',naval:true}
+ INF:{name:'突擊兵',short:'突',cost:700,max:180,role:'主力／佔領',armor:0,pen:0},TANK:{name:'裝甲部隊',short:'甲',cost:2500,max:60,role:'肉盾／突破',armor:150,pen:180},RECON:{name:'偵察兵',short:'偵',cost:950,max:90,role:'4格視野／情報',armor:0,pen:0},SF:{name:'特戰部隊',short:'特',cost:1550,max:90,role:'高速／側翼',armor:15,pen:50},AT:{name:'反裝甲部隊',short:'反',cost:1050,max:75,role:'伏擊／反裝甲',armor:20,pen:210},FIRE:{name:'火力支援',short:'火',cost:1800,max:40,role:'遠程／壓制',armor:20,pen:120},
+ PATROL:{name:'巡邏艇',short:'巡',cost:1200,max:24,role:'近岸巡防',naval:true,armor:60,pen:90},FRIGATE:{name:'護衛艦',short:'艦',cost:2600,max:40,role:'海上火力',naval:true,armor:110,pen:160},TRANSPORT:{name:'運輸艦',short:'運',cost:2200,max:20,role:'跨海運輸（可搭載3隊陸軍）',naval:true,armor:40,pen:0}
 };
 const SPRITE={
  INF:{file:'inf',w:260,h:215},RECON:{file:'recon',w:260,h:219},SF:{file:'sf',w:260,h:228},AT:{file:'at',w:260,h:228},FIRE:{file:'fire',w:260,h:228}
@@ -148,6 +165,7 @@ const SPRITE={
 // corridors/passes/sides/labels all come from scenario.* instead of hardcoded map constants, so the
 // same client works for any scenario the server knows about.
 let scenario=null,scenarioList=[];
+let territoryFillEls={};
 let state={phase:'LOBBY',units:[],facilities:[],events:[],budget:[30000,30000],losses:[0,0],time:0,front:0};let side=0,ws=null,selectedIds=[],commandMode='MOVE';let camera={x:WORLD.w/2,y:WORLD.h/2,w:WORLD.w,h:WORLD.h};let drag=null;let shiftDrag=null;let toastTimer=null;
 function formationOffset(i){const gx=(i%3)-1,gy=Math.floor(i/3)-1;return{x:gx*170*S,y:gy*170*S};}
 const svg=document.getElementById('map');
@@ -162,7 +180,7 @@ function fitHome(){const r=svg.getBoundingClientRect();const ar=Math.max(.3,r.wi
 function renderCamera(){svg.setAttribute('viewBox',`${camera.x-camera.w/2} ${camera.y-camera.h/2} ${camera.w} ${camera.h}`)}
 function zoomAt(f){const minW=WORLD.w*0.042,minH=WORLD.h*0.027;const nw=Math.max(minW,Math.min(WORLD.w,camera.w*f)),nh=Math.max(minH,Math.min(WORLD.h,camera.h*f));const cx=camera.x,cy=camera.y;camera.w=nw;camera.h=nh;camera.x=clamp(cx,nw/2,WORLD.w-nw/2);camera.y=clamp(cy,nh/2,WORLD.h-nh/2);renderCamera()}
 function pointerWorld(e){const r=svg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;return{x:(camera.x-camera.w/2)+px*camera.w,y:(camera.y-camera.h/2)+py*camera.h}}
-function faction(side){return side===0?'#3fa5ff':'#ff5e62'}
+function faction(side){return side===0?'#5b9bdb':'#e2665a'}
 function pointInPoly(x,y,p){let inside=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const xi=p[i][0],yi=p[i][1],xj=p[j][0],yj=p[j][1];const hit=((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi+1e-9)+xi);if(hit)inside=!inside;}return inside;}
 function pointInMapLand(x,y){return (scenario?.landmasses||[]).some(lm=>pointInPoly(x,y,lm.poly));}
 function polyPath(pts){return pts.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ')+' Z';}
@@ -197,17 +215,31 @@ function buildMap(){
   defs.append(E('linearGradient',{id:'landGradCorridor',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#8f8570'}),E('stop',{offset:'1','stop-color':'#4c473c'}));
   defs.append(E('pattern',{id:'grid',width:504,height:504,patternUnits:'userSpaceOnUse'}));defs.lastChild.append(E('path',{d:'M504 0H0V504',fill:'none',stroke:'#ffffff',opacity:'.025','stroke-width':4}));
   defs.append(E('filter',{id:'soft',x:'-30%',y:'-30%',width:'160%',height:'160%'}));defs.lastChild.append(E('feDropShadow',{dx:0,dy:17,stdDeviation:21,'flood-color':'#000','flood-opacity':'.45'}));
+  // Parchment/relief texture stamped over every landmass fill — breaks up the otherwise flat gradient
+  // into something with a hand-drawn, weathered-map feel instead of a smooth vector wash.
+  defs.append(E('filter',{id:'terrainNoise',x:'-20%',y:'-20%',width:'140%',height:'140%'}));
+  defs.lastChild.append(
+    E('feTurbulence',{type:'fractalNoise',baseFrequency:'0.010 0.014',numOctaves:4,seed:9,result:'n'}),
+    E('feColorMatrix',{in:'n',type:'matrix',values:'0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.5 0.5 0.5 0 0',result:'na'}),
+    E('feComposite',{in:'na',in2:'SourceGraphic',operator:'in'})
+  );
   svg.append(defs);
   svg.append(E('rect',{width:WORLD.w,height:WORLD.h,fill:'url(#seaGrad)'}));
   // Ocean current / wave texture, scaled to the current scenario's world size — purely decorative.
   const waves=[0.32,0.45,0.58].map(f=>{const y=WORLD.h*f;return `M${WORLD.w*0.15} ${y} Q${WORLD.w*0.35} ${y-WORLD.h*0.02} ${WORLD.w*0.5} ${y+WORLD.h*0.01} T${WORLD.w*0.8} ${y-WORLD.h*0.015}`;});
   waves.forEach(d=>svg.append(E('path',{d,fill:'none',stroke:'#7fb8c9','stroke-width':42,opacity:'.12'})));
-  // Every landmass the current scenario defines (home territories, neutral/corridor land, isolated relay
-  // islands) — colour and z-order picked from its kind so any scenario renders sensibly.
+  // Every landmass the current scenario defines (home territories, neutral land, etc) — colour and
+  // z-order picked from its kind so any scenario renders sensibly. A landmass tied to a single facility
+  // (territory-conquest style maps) instead gets a live-updating fill tracked in territoryFillEls, so the
+  // ground itself recolors the instant that facility changes hands — see updateTerritoryColors().
+  territoryFillEls={};
   sortedLandmasses().forEach(lm=>{
-    const grad=GRAD_BY_KIND[lm.kind]||'landGradCorridor';
+    const grad=lm.facilityId?'landGradCorridor':(GRAD_BY_KIND[lm.kind]||'landGradCorridor');
     const d=polyPath(lm.poly);
-    svg.append(E('path',{d,fill:`url(#${grad})`,stroke:'#a9c0b8','stroke-opacity':'.4','stroke-width':55,filter:'url(#soft)'}));
+    const fillEl=E('path',{d,fill:`url(#${grad})`,stroke:'#a9c0b8','stroke-opacity':'.4','stroke-width':55,filter:'url(#soft)'});
+    svg.append(fillEl);
+    if(lm.facilityId)territoryFillEls[lm.id]=fillEl;
+    svg.append(E('path',{d,fill:'#1a1006',opacity:'.4',filter:'url(#terrainNoise)'}));
     svg.append(E('path',{d,fill:'url(#grid)'}));
     svg.append(E('path',{d,fill:'none',stroke:'#d4b97c','stroke-width':105,opacity:'.35'}));
   });
@@ -231,8 +263,8 @@ function buildMinimap(){
 function drawMinimapDynamic(){
   const old=miniSvg.querySelector('#miniDyn');if(old)old.remove();
   const g=E('g',{id:'miniDyn'});
-  for(const f of state.facilities||[]){if(f.destroyed)continue;const c=f.control===0?'#3fa5ff':f.control===1?'#ff5e62':'#d9bd6e';g.append(E('circle',{cx:f.x,cy:f.y,r:420,fill:c,opacity:'.95'}));}
-  for(const q of state.units||[]){if(!q.active||q.carrier)continue;if(q.side!==side&&!knownEnemy(q))continue;const c=q.side===0?'#45a8ff':'#ff6064';g.append(E('circle',{cx:q.x,cy:q.y,r:273,fill:c}));}
+  for(const f of state.facilities||[]){if(f.destroyed)continue;const c=f.control===0?'#5b9bdb':f.control===1?'#e2665a':'#d9bd6e';g.append(E('circle',{cx:f.x,cy:f.y,r:420,fill:c,opacity:'.95'}));}
+  for(const q of state.units||[]){if(!q.active||q.carrier)continue;if(q.side!==side&&!knownEnemy(q))continue;const c=q.side===0?'#6ba7dd':'#e5695d';g.append(E('circle',{cx:q.x,cy:q.y,r:273,fill:c}));}
   const vx=camera.x-camera.w/2,vy=camera.y-camera.h/2;
   g.append(E('rect',{x:vx,y:vy,width:camera.w,height:camera.h,fill:'none',stroke:'#f5dc79','stroke-width':168}));
   miniSvg.append(g);
@@ -243,7 +275,7 @@ document.getElementById('minimap').addEventListener('click',e=>{
 });
 function drawPass(p){const g=E('g');g.append(E('path',{d:`M${p.x-630} ${p.y+546} Q${p.x} ${p.y-546} ${p.x+630} ${p.y+546}`,fill:'#8b7662',stroke:'#4e3f35','stroke-width':95}));g.append(E('path',{d:`M${p.x-462} ${p.y+462} Q${p.x} ${p.y-357} ${p.x+462} ${p.y+462}`,fill:'none',stroke:'#d9c58a','stroke-width':147}));g.append(E('text',{x:p.x,y:p.y-630,'text-anchor':'middle',fill:'#f0d780','font-size':160,'font-weight':800},p.name));svg.append(g)}
 function drawFacility(layer,f){
-  const c=f.control===0?'#3fa5ff':f.control===1?'#ff5e62':'#d9bd6e';
+  const c=f.control===0?'#5b9bdb':f.control===1?'#e2665a':'#d9bd6e';
   const rad=(f.type==='HQ'?260:f.type==='FACTORY'?170:f.type==='RADAR'?150:f.type==='WATCHTOWER'?130:190)*S;
   if(f.type==='FACTORY'&&f.destroyed){
     const g=E('g',{opacity:.85});
@@ -255,7 +287,7 @@ function drawFacility(layer,f){
   }
   const g=E('g',{filter:'url(#soft)'});
   const cap0=f.capture?.[0]||0,cap1=f.capture?.[1]||0,cap=Math.max(cap0,cap1);
-  if(cap>0&&cap<100){const cc=cap0>cap1?'#3fa5ff':'#ff5e62';const ringR=rad+63,circ=2*Math.PI*ringR;g.append(E('circle',{cx:f.x,cy:f.y,r:ringR,fill:'none',stroke:'#0b1519','stroke-width':42,opacity:'.5'}));g.append(E('circle',{cx:f.x,cy:f.y,r:ringR,fill:'none',stroke:cc,'stroke-width':42,'stroke-dasharray':`${circ*cap/100} ${circ}`,'stroke-linecap':'round',transform:`rotate(-90 ${f.x} ${f.y})`}));g.append(E('text',{x:f.x,y:f.y-rad-97,'text-anchor':'middle',fill:cc,'font-size':143,'font-weight':900},`攻佔中 ${Math.round(cap)}%`));}
+  if(cap>0&&cap<100){const cc=cap0>cap1?'#5b9bdb':'#e2665a';const ringR=rad+63,circ=2*Math.PI*ringR;g.append(E('circle',{cx:f.x,cy:f.y,r:ringR,fill:'none',stroke:'#0b1519','stroke-width':42,opacity:'.5'}));g.append(E('circle',{cx:f.x,cy:f.y,r:ringR,fill:'none',stroke:cc,'stroke-width':42,'stroke-dasharray':`${circ*cap/100} ${circ}`,'stroke-linecap':'round',transform:`rotate(-90 ${f.x} ${f.y})`}));g.append(E('text',{x:f.x,y:f.y-rad-97,'text-anchor':'middle',fill:cc,'font-size':143,'font-weight':900},`攻佔中 ${Math.round(cap)}%`));}
   g.append(E('circle',{cx:f.x,cy:f.y,r:rad,fill:'#071015',opacity:'.7',stroke:c,'stroke-width':71}));
   if(f.type==='HQ'||f.type==='FORT'){
     g.append(E('path',{d:`M${f.x-315} ${f.y+273} L${f.x-252} ${f.y-147} L${f.x-147} ${f.y-315} L${f.x} ${f.y-168} L${f.x+147} ${f.y-315} L${f.x+252} ${f.y-147} L${f.x+315} ${f.y+273} Z`,fill:c,opacity:'.75',stroke:'#0b1519','stroke-width':55}));
@@ -317,7 +349,7 @@ function knownEnemy(q){
   return (state.facilities||[]).some(f=>f.control===side&&!f.destroyed&&f.visionBoost&&Math.hypot(f.x-q.x,f.y-q.y)<=f.visionBoost);
 }
 function drawUnit(g,q){
-  const c=q.side===0?'#45a8ff':'#ff6064';const sel=selectedIds.includes(q.id);const unit=UNIT[q.kind];
+  const c=q.side===0?'#6ba7dd':'#e5695d';const sel=selectedIds.includes(q.id);const unit=UNIT[q.kind];
   const gg=E('g',{transform:`translate(${q.x} ${q.y})`});
   if(sel)gg.append(E('circle',{r:273,fill:'none',stroke:'#f5dc79','stroke-width':63}));
   if(q.kind==='TRANSPORT'){
@@ -376,7 +408,16 @@ function drawFx(){const old=svg.querySelector('#fxLayer');if(old)old.remove();co
     if(fx.damage)g.append(E('text',{x:fx.x2,y:fx.y2-378,'text-anchor':'middle',fill:'#ffe8a3','font-size':151,'font-weight':900,opacity:a},`-${fx.damage}`));
   }
 }svg.append(g)}
-function updateScene(){drawAtmosphere();drawFacilities();drawUnits();drawFx();drawMinimapDynamic();}
+function updateTerritoryColors(){
+  for(const lm of scenario?.landmasses||[]){
+    if(!lm.facilityId)continue;
+    const el=territoryFillEls[lm.id];if(!el)continue;
+    const f=(state.facilities||[]).find(x=>x.id===lm.facilityId);
+    const ctrl=f?f.control:-1;
+    el.setAttribute('fill',ctrl===0?'url(#landGradTW)':ctrl===1?'url(#landGradJP)':'url(#landGradCorridor)');
+  }
+}
+function updateScene(){updateTerritoryColors();drawAtmosphere();drawFacilities();drawUnits();drawFx();drawMinimapDynamic();}
 function renderSelected(){
   const el=document.getElementById('selected');
   selectedIds=selectedIds.filter(id=>{const q=state.units.find(x=>x.id===id);return q&&q.active;});
@@ -384,7 +425,7 @@ function renderSelected(){
   el.classList.remove('hidden');
   if(selectedIds.length===1){
     const q=state.units.find(x=>x.id===selectedIds[0]);const u=UNIT[q.kind];const hp=clamp(q.personnel/q.maxPersonnel,0,1);
-    el.innerHTML=`<div class="selectedTop"><div class="badge">${u.short}</div><div><div style="font-weight:900">#${q.id} ${u.name}</div><div class="tiny">${u.role}</div></div></div><div class="hp"><i style="width:${hp*100}%"></i></div><div class="statLine"><span>兵力 ${Math.round(q.personnel)} / ${q.maxPersonnel}</span><span>彈藥 ${Math.round(q.ammo)}%</span></div><div class="statLine"><span>士氣 ${Math.round(q.morale*100)}%</span><span>${q.status||'待命'}</span></div>`;
+    el.innerHTML=`<div class="selectedTop"><div class="badge">${u.short}</div><div><div style="font-weight:900">#${q.id} ${u.name}</div><div class="tiny">${u.role}｜裝甲${u.armor||0}・穿甲${u.pen||0}</div></div></div><div class="hp"><i style="width:${hp*100}%"></i></div><div class="statLine"><span>兵力 ${Math.round(q.personnel)} / ${q.maxPersonnel}</span><span>彈藥 ${Math.round(q.ammo)}%</span></div><div class="statLine"><span>士氣 ${Math.round(q.morale*100)}%</span><span>${q.status||'待命'}</span></div>`;
   }else{
     const qs=selectedIds.map(id=>state.units.find(x=>x.id===id)).filter(Boolean);
     const totalP=qs.reduce((s,q)=>s+q.personnel,0);
@@ -395,7 +436,8 @@ function renderSelected(){
 }
 function renderEventLog(){const el=document.getElementById('eventLog');el.innerHTML=(state.events||[]).slice(0,6).map(e=>`<div class="logRow">${esc(e.text)}</div>`).join('');}
 function buyKinds(){return Object.keys(UNIT).filter(k=>!UNIT[k].naval||scenario?.hasNavy);}
-function buildBuyGrid(){const b=document.getElementById('buyGrid');b.innerHTML='';buyKinds().forEach(k=>{const u=UNIT[k];const btn=document.createElement('button');btn.className='buy';btn.dataset.kind=k;btn.innerHTML=`<strong>＋${u.name}</strong><span>${u.role}</span><em>¥${u.cost.toLocaleString()}</em>`;btn.onclick=()=>send({t:'buy',kind:k});b.appendChild(btn)});}
+function armorTag(u){return (u.armor||u.pen)?`<br>裝甲${u.armor||0}・穿甲${u.pen||0}`:'';}
+function buildBuyGrid(){const b=document.getElementById('buyGrid');b.innerHTML='';buyKinds().forEach(k=>{const u=UNIT[k];const btn=document.createElement('button');btn.className='buy';btn.dataset.kind=k;btn.innerHTML=`<strong>＋${u.name}</strong><span>${u.role}${armorTag(u)}</span><em>¥${u.cost.toLocaleString()}</em>`;btn.onclick=()=>send({t:'buy',kind:k});b.appendChild(btn)});}
 // Rebuilding #buyGrid on every snapshot (up to ~3.3Hz in PREP) replaced the buttons out from under
 // real clicks — this was almost certainly the "recruit button flaky" bug. Build once, then only touch
 // each button's disabled state on subsequent calls.
@@ -511,6 +553,7 @@ function buildBattleBuyGrid(){
   for(const k of buyKinds()){
     const u=UNIT[k];const btn=document.createElement('button');
     btn.dataset.kind=k;
+    btn.title=`${u.role}｜裝甲${u.armor||0}・穿甲${u.pen||0}`;
     btn.innerHTML=`<strong>＋${u.name}</strong><span>¥${u.cost.toLocaleString()}</span>`;
     btn.onclick=()=>send({t:'buy',kind:k});
     g.appendChild(btn);

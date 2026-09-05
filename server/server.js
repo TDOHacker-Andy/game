@@ -20,14 +20,23 @@ let nextUnit = 1;
 // without changing the relative strengths between unit types.
 const UNIT = {
   INF: { name:'突擊兵', short:'突', cost:700, max:180, speed:247, range:1092, acc:.46, dmg:7, rof:.9, vision:1092, armor:0, pen:0, land:true, role:'主力／佔領' },
-  TANK:{ name:'裝甲部隊', short:'甲', cost:2500, max:60, speed:423, range:1470, acc:.58, dmg:19, rof:.34, vision:966, armor:150, pen:180, land:true, role:'肉盾／突破' },
+  TANK:{ name:'裝甲部隊', short:'甲', cost:2500, max:60, speed:423, range:1470, acc:.58, dmg:19, rof:.34, vision:966, armor:150, pen:180, land:true, role:'肉盾／突破，克制特戰部隊' },
   RECON:{ name:'偵察兵', short:'偵', cost:950, max:90, speed:564, range:903, acc:.34, dmg:4, rof:1.2, vision:2268, armor:0, pen:0, land:true, role:'4格視野／情報' },
-  SF:{ name:'特戰部隊', short:'特', cost:1550, max:90, speed:658, range:1176, acc:.62, dmg:10, rof:1.05, vision:1680, armor:15, pen:50, land:true, role:'高速／側翼' },
-  AT:{ name:'反裝甲部隊', short:'反', cost:1050, max:75, speed:282, range:1596, acc:.66, dmg:29, rof:.42, vision:1218, armor:20, pen:210, land:true, role:'伏擊／反裝甲' },
+  SF:{ name:'特戰部隊', short:'特', cost:1550, max:90, speed:658, range:1176, acc:.62, dmg:10, rof:1.05, vision:1680, armor:15, pen:50, land:true, role:'高速／側翼，克制反裝甲部隊' },
+  AT:{ name:'反裝甲部隊', short:'反', cost:1050, max:75, speed:282, range:1596, acc:.66, dmg:29, rof:.42, vision:1218, armor:20, pen:210, land:true, role:'伏擊／反裝甲，克制裝甲部隊' },
   FIRE:{ name:'火力支援', short:'火', cost:1800, max:40, speed:223, range:2058, acc:.34, dmg:24, rof:.18, vision:1344, armor:20, pen:120, land:true, role:'遠程／壓制' },
   PATROL:{ name:'巡邏艇', short:'巡', cost:1200, max:24, speed:611, range:1512, acc:.44, dmg:15, rof:.42, vision:2520, armor:60, pen:90, naval:true, role:'近岸巡防' },
   FRIGATE:{ name:'護衛艦', short:'艦', cost:2600, max:40, speed:447, range:2520, acc:.52, dmg:29, rof:.22, vision:3150, armor:110, pen:160, naval:true, role:'海上火力' },
   TRANSPORT:{ name:'運輸艦', short:'運', cost:2200, max:20, speed:353, range:525, acc:.08, dmg:2, rof:.08, vision:1890, armor:40, pen:0, naval:true, role:'跨海運輸（可搭載3隊陸軍）' }
+};
+// Explicit three-way counter on top of the armor/pen system: a clean, easy-to-explain rock-paper-scissors
+// triangle among the three "hard" land specialists — 反裝甲克裝甲、裝甲克特戰、特戰克反裝甲 — so the
+// relationship is a real, meaningful damage bonus rather than something that only sometimes falls out of
+// the armor math. Every other matchup (INF, RECON, FIRE, naval units) is still governed purely by armor/pen.
+const COUNTER = {
+  AT: { TANK: 1.6 },
+  TANK: { SF: 1.6 },
+  SF: { AT: 1.6 },
 };
 
 // Single mutable "currently active scenario" pointer. Room creation/handling always reloads it via
@@ -259,7 +268,7 @@ function scenarioMeta(){
   return {
     id:CURRENT.id,name:CURRENT.name,mode:CURRENT.mode,hasNavy:CURRENT.hasNavy,
     world:CURRENT.world,
-    landmasses:CURRENT.landmasses.map(l=>({id:l.id,kind:l.kind,side:l.side??null,poly:l.poly,pass:l.pass||null})),
+    landmasses:CURRENT.landmasses.map(l=>({id:l.id,kind:l.kind,side:l.side??null,poly:l.poly,pass:l.pass||null,facilityId:l.facilityId||null})),
     corridors:CURRENT.corridors,passes:CURRENT.passes,
     facilities:CURRENT.facilities.map(f=>({id:f.id,name:f.name,type:f.type,x:f.x,y:f.y,side:f.side})),
     homePoints:CURRENT.homePoints,
@@ -383,7 +392,7 @@ function updateFerries(s){
   }
 }
 function chooseTarget(s,a){let best=null,bd=Infinity;for(const b of s.units){if(!b.active||b.side===a.side||b.reserve)continue;if(!visible(s,b,a.side))continue;const d=Math.hypot(a.x-b.x,a.y-b.y);if(d<=UNIT[a.kind].range&&d<bd){best=b;bd=d;}}return best;}
-function fire(s,a,b,dt){const ua=UNIT[a.kind],ub=UNIT[b.kind];a.fireCd=Math.max(0,a.fireCd-dt);if(a.fireCd>0||a.ammo<=0)return;a.fireCd=1/ua.rof;a.ammo=Math.max(0,a.ammo-.15);const hit=Math.random()<ua.acc*(1-a.suppression*.4);const fx={kind:hit?'hit':'miss',x1:a.x,y1:a.y,x2:b.x,y2:b.y,t:1.0,damage:0};s.fx.push(fx);if(!hit)return;let dmg=ua.dmg*(.75+.5*Math.random());if(ub.armor>0)dmg*=ua.pen>=ub.armor?.92:.18;if(b.stance==='DEFEND')dmg*=.8;dmg*=a.effectiveness;b.personnel=Math.max(0,b.personnel-dmg);b.lastDamage=dmg;b.suppression=clamp(b.suppression+(ua.dmg>20?.16:.07),0,1);b.morale=clamp(b.morale-(ua.dmg>20?.025:.012),.05,1);fx.damage=Math.round(dmg*10)/10;event(s,`${UNIT[a.kind].name} → ${UNIT[b.kind].name}｜命中 ${dmg.toFixed(1)}`,'combat');
+function fire(s,a,b,dt){const ua=UNIT[a.kind],ub=UNIT[b.kind];a.fireCd=Math.max(0,a.fireCd-dt);if(a.fireCd>0||a.ammo<=0)return;a.fireCd=1/ua.rof;a.ammo=Math.max(0,a.ammo-.15);const hit=Math.random()<ua.acc*(1-a.suppression*.4);const fx={kind:hit?'hit':'miss',x1:a.x,y1:a.y,x2:b.x,y2:b.y,t:1.0,damage:0};s.fx.push(fx);if(!hit)return;let dmg=ua.dmg*(.75+.5*Math.random());if(ub.armor>0)dmg*=ua.pen>=ub.armor?.92:.18;dmg*=COUNTER[a.kind]?.[b.kind]||1;if(b.stance==='DEFEND')dmg*=.8;dmg*=a.effectiveness;b.personnel=Math.max(0,b.personnel-dmg);b.lastDamage=dmg;b.suppression=clamp(b.suppression+(ua.dmg>20?.16:.07),0,1);b.morale=clamp(b.morale-(ua.dmg>20?.025:.012),.05,1);fx.damage=Math.round(dmg*10)/10;event(s,`${UNIT[a.kind].name} → ${UNIT[b.kind].name}｜命中 ${dmg.toFixed(1)}`,'combat');
   if(b.personnel<=0){
     b.active=false;a.kills++;s.losses[b.side]++;event(s,`${UNIT[b.kind].name} 被殲滅`,'combat');s.fx.push({kind:'death',x1:b.x,y1:b.y,x2:b.x,y2:b.y,t:1.2,damage:0});
     if(b.kind==='TRANSPORT'&&b.cargo.length){for(const cid of b.cargo){const carried=s.units.find(u=>u.id===cid);if(carried){carried.active=false;carried.personnel=0;s.losses[carried.side]++;event(s,`${UNIT[carried.kind].name} 隨運輸艦沉沒`,'combat');s.fx.push({kind:'death',x1:carried.x,y1:carried.y,x2:carried.x,y2:carried.y,t:1.2,damage:0});}}}
