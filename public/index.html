@@ -165,7 +165,8 @@ const SPRITE={
 // corridors/passes/sides/labels all come from scenario.* instead of hardcoded map constants, so the
 // same client works for any scenario the server knows about.
 let scenario=null,scenarioList=[];
-let territoryFillEls={};
+let territoryBorderEls={};
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
 let state={phase:'LOBBY',units:[],facilities:[],events:[],budget:[30000,30000],losses:[0,0],time:0,front:0};let side=0,ws=null,selectedIds=[],commandMode='MOVE';let camera={x:WORLD.w/2,y:WORLD.h/2,w:WORLD.w,h:WORLD.h};let drag=null;let shiftDrag=null;let toastTimer=null;
 function formationOffset(i){const gx=(i%3)-1,gy=Math.floor(i/3)-1;return{x:gx*170*S,y:gy*170*S};}
 const svg=document.getElementById('map');
@@ -186,7 +187,9 @@ function pointInMapLand(x,y){return (scenario?.landmasses||[]).some(lm=>pointInP
 function polyPath(pts){return pts.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ')+' Z';}
 const KIND_ORDER={home0:0,home1:1,isolated:2,neutral:3};
 const GRAD_BY_KIND={home0:'landGradTW',home1:'landGradJP',isolated:'landGradMID',neutral:'landGradCorridor'};
+const NATURAL_GRADS=['terrainGreen','terrainOlive','terrainTan','terrainBrown','terrainSage'];
 const MINI_COLOR_BY_KIND={home0:'#4c7550',home1:'#6b5040',isolated:'#8a7a52',neutral:'#6b6350'};
+const NATURAL_MINI_COLORS=['#597a45','#6b7245','#84744f','#6d5638','#5f7458'];
 function sortedLandmasses(){return (scenario?.landmasses||[]).slice().sort((a,b)=>(KIND_ORDER[a.kind]??9)-(KIND_ORDER[b.kind]??9));}
 // Facility positions come from scenario.facilities (server-provided base layout). Roads are generated
 // generically by connecting each side's own facilities to their nearest same-side neighbour, so any
@@ -209,10 +212,19 @@ function buildMap(){
   svg.setAttribute('viewBox',`0 0 ${WORLD.w} ${WORLD.h}`);
   const defs=E('defs');
   defs.append(E('linearGradient',{id:'seaGrad',x1:'0',y1:'0',x2:'0',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#0a2b38'}),E('stop',{offset:'1','stop-color':'#061922'}));
+  // Natural terrain palette — territory ground color is picked once per territory (deterministic, not
+  // tied to who owns it) so the continent reads as varied real terrain; ownership is instead shown by a
+  // colored border traced around each territory (see the border pass at the end of buildMap), the way a
+  // political map draws national borders over unchanging physical terrain.
   defs.append(E('linearGradient',{id:'landGradTW',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#5d8a5f'}),E('stop',{offset:'1','stop-color':'#2f4a37'}));
   defs.append(E('linearGradient',{id:'landGradJP',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#7a5c48'}),E('stop',{offset:'1','stop-color':'#3c2e26'}));
   defs.append(E('linearGradient',{id:'landGradMID',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#8a7a52'}),E('stop',{offset:'1','stop-color':'#5c4f34'}));
   defs.append(E('linearGradient',{id:'landGradCorridor',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#8f8570'}),E('stop',{offset:'1','stop-color':'#4c473c'}));
+  defs.append(E('linearGradient',{id:'terrainGreen',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#6f9457'}),E('stop',{offset:'1','stop-color':'#42592f'}));
+  defs.append(E('linearGradient',{id:'terrainOlive',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#8a9256'}),E('stop',{offset:'1','stop-color':'#565c30'}));
+  defs.append(E('linearGradient',{id:'terrainTan',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#ab9662'}),E('stop',{offset:'1','stop-color':'#6d5c39'}));
+  defs.append(E('linearGradient',{id:'terrainBrown',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#8d7048'}),E('stop',{offset:'1','stop-color':'#523f28'}));
+  defs.append(E('linearGradient',{id:'terrainSage',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#7c9a72'}),E('stop',{offset:'1','stop-color':'#4a5c42'}));
   defs.append(E('pattern',{id:'grid',width:504,height:504,patternUnits:'userSpaceOnUse'}));defs.lastChild.append(E('path',{d:'M504 0H0V504',fill:'none',stroke:'#ffffff',opacity:'.025','stroke-width':4}));
   defs.append(E('filter',{id:'soft',x:'-30%',y:'-30%',width:'160%',height:'160%'}));defs.lastChild.append(E('feDropShadow',{dx:0,dy:17,stdDeviation:21,'flood-color':'#000','flood-opacity':'.45'}));
   // Parchment/relief texture stamped over every landmass fill — breaks up the otherwise flat gradient
@@ -228,20 +240,18 @@ function buildMap(){
   // Ocean current / wave texture, scaled to the current scenario's world size — purely decorative.
   const waves=[0.32,0.45,0.58].map(f=>{const y=WORLD.h*f;return `M${WORLD.w*0.15} ${y} Q${WORLD.w*0.35} ${y-WORLD.h*0.02} ${WORLD.w*0.5} ${y+WORLD.h*0.01} T${WORLD.w*0.8} ${y-WORLD.h*0.015}`;});
   waves.forEach(d=>svg.append(E('path',{d,fill:'none',stroke:'#7fb8c9','stroke-width':42,opacity:'.12'})));
-  // Every landmass the current scenario defines (home territories, neutral land, etc) — colour and
-  // z-order picked from its kind so any scenario renders sensibly. A landmass tied to a single facility
-  // (territory-conquest style maps) instead gets a live-updating fill tracked in territoryFillEls, so the
-  // ground itself recolors the instant that facility changes hands — see updateTerritoryColors().
-  territoryFillEls={};
+  // Every landmass the current scenario defines. A landmass tied to a single facility (territory-conquest
+  // style maps) keeps a fixed natural terrain color forever — physical terrain doesn't change hands — and
+  // instead gets a live-updating BORDER traced around it (territoryBorderEls), so who owns it shows the
+  // way a political map draws national borders, not by recoloring the ground itself.
+  territoryBorderEls={};
   sortedLandmasses().forEach(lm=>{
-    const grad=lm.facilityId?'landGradCorridor':(GRAD_BY_KIND[lm.kind]||'landGradCorridor');
+    const grad=lm.facilityId?NATURAL_GRADS[hashStr(lm.id)%NATURAL_GRADS.length]:(GRAD_BY_KIND[lm.kind]||'landGradCorridor');
     const d=polyPath(lm.poly);
-    const fillEl=E('path',{d,fill:`url(#${grad})`,stroke:'#a9c0b8','stroke-opacity':'.4','stroke-width':55,filter:'url(#soft)'});
-    svg.append(fillEl);
-    if(lm.facilityId)territoryFillEls[lm.id]=fillEl;
+    svg.append(E('path',{d,fill:`url(#${grad})`,stroke:'#a9c0b8','stroke-opacity':'.4','stroke-width':55,filter:'url(#soft)'}));
     svg.append(E('path',{d,fill:'#1a1006',opacity:'.4',filter:'url(#terrainNoise)'}));
     svg.append(E('path',{d,fill:'url(#grid)'}));
-    svg.append(E('path',{d,fill:'none',stroke:'#d4b97c','stroke-width':105,opacity:'.35'}));
+    if(!lm.facilityId)svg.append(E('path',{d,fill:'none',stroke:'#d4b97c','stroke-width':105,opacity:'.35'}));
   });
   // Forest clusters scattered across all land, density adapted to the current world size.
   const stepY=Math.max(400,WORLD.h/70),stepX=Math.max(450,WORLD.w/70);
@@ -251,6 +261,15 @@ function buildMap(){
   autoRoads().forEach(p=>{const d=p.map((a,j)=>(j?'L':'M')+a[0]+' '+a[1]).join(' ');svg.append(E('path',{d,fill:'none',stroke:'#1b241f','stroke-width':315,opacity:'.55','stroke-linecap':'round'}));svg.append(E('path',{d,fill:'none',stroke:'#c0ab7c','stroke-width':97,opacity:'.85','stroke-linecap':'round','stroke-dasharray':'252 38'}));});
   (scenario.corridors||[]).forEach(c=>{const p=[[c.a.x,c.a.y],[c.pass.x,c.pass.y],[c.b.x,c.b.y]];const d=p.map((a,j)=>(j?'L':'M')+a[0]+' '+a[1]).join(' ');svg.append(E('path',{d,fill:'none',stroke:'#1b241f','stroke-width':200,opacity:'.55','stroke-linecap':'round'}));svg.append(E('path',{d,fill:'none',stroke:'#e2c987','stroke-width':70,opacity:'.85','stroke-linecap':'round','stroke-dasharray':'160 60'}));});
   (scenario.passes||[]).forEach(p=>drawPass(p));
+  // National borders, traced last so they sit crisply on top of every terrain/road/label layer beneath —
+  // color reflects current ownership and is kept live by updateTerritoryBorders() each snapshot.
+  sortedLandmasses().forEach(lm=>{
+    if(!lm.facilityId)return;
+    const d=polyPath(lm.poly);
+    const borderEl=E('path',{d,fill:'none',stroke:'#8a7a52','stroke-width':130,opacity:'.9','stroke-linejoin':'round'});
+    svg.append(borderEl);
+    territoryBorderEls[lm.id]=borderEl;
+  });
   drawLabels();
   buildMinimap();
 }
@@ -258,7 +277,7 @@ function buildMinimap(){
   miniSvg.innerHTML='';
   miniSvg.setAttribute('viewBox',`0 0 ${WORLD.w} ${WORLD.h}`);
   miniSvg.append(E('rect',{width:WORLD.w,height:WORLD.h,fill:'#0a1f28'}));
-  sortedLandmasses().forEach(lm=>miniSvg.append(E('path',{d:polyPath(lm.poly),fill:MINI_COLOR_BY_KIND[lm.kind]||'#6b6350'})));
+  sortedLandmasses().forEach(lm=>{const fill=lm.facilityId?NATURAL_MINI_COLORS[hashStr(lm.id)%NATURAL_MINI_COLORS.length]:(MINI_COLOR_BY_KIND[lm.kind]||'#6b6350');miniSvg.append(E('path',{d:polyPath(lm.poly),fill}));});
 }
 function drawMinimapDynamic(){
   const old=miniSvg.querySelector('#miniDyn');if(old)old.remove();
@@ -408,16 +427,18 @@ function drawFx(){const old=svg.querySelector('#fxLayer');if(old)old.remove();co
     if(fx.damage)g.append(E('text',{x:fx.x2,y:fx.y2-378,'text-anchor':'middle',fill:'#ffe8a3','font-size':151,'font-weight':900,opacity:a},`-${fx.damage}`));
   }
 }svg.append(g)}
-function updateTerritoryColors(){
+function updateTerritoryBorders(){
   for(const lm of scenario?.landmasses||[]){
     if(!lm.facilityId)continue;
-    const el=territoryFillEls[lm.id];if(!el)continue;
+    const el=territoryBorderEls[lm.id];if(!el)continue;
     const f=(state.facilities||[]).find(x=>x.id===lm.facilityId);
     const ctrl=f?f.control:-1;
-    el.setAttribute('fill',ctrl===0?'url(#landGradTW)':ctrl===1?'url(#landGradJP)':'url(#landGradCorridor)');
+    el.setAttribute('stroke',ctrl===0?'#5b9bdb':ctrl===1?'#e2665a':'#8a7a52');
+    el.setAttribute('stroke-width',ctrl<0?'90':'150');
+    el.setAttribute('opacity',ctrl<0?'.6':'1');
   }
 }
-function updateScene(){updateTerritoryColors();drawAtmosphere();drawFacilities();drawUnits();drawFx();drawMinimapDynamic();}
+function updateScene(){updateTerritoryBorders();drawAtmosphere();drawFacilities();drawUnits();drawFx();drawMinimapDynamic();}
 function renderSelected(){
   const el=document.getElementById('selected');
   selectedIds=selectedIds.filter(id=>{const q=state.units.find(x=>x.id===id);return q&&q.active;});
