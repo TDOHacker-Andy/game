@@ -179,7 +179,7 @@ let scenario=null,scenarioList=[];
 // instead of onto the big landmass polygons — each cell's color is whichever side currently controls
 // the nearest facility, recomputed live every snapshot, so the border is exactly "how far you've
 // actually fought and captured" rather than a whole territory flipping the instant one facility falls.
-let subregionFillEls=[],subregionCentroids=[],miniSubFillEls=[];
+let subregionFillEls=[],subregionGlowEls=[],subregionCentroids=[],subregionNeighbors=[],miniSubFillEls=[];
 let state={phase:'LOBBY',units:[],facilities:[],events:[],budget:[30000,30000],losses:[0,0],time:0,front:0};let side=0,ws=null,selectedIds=[],commandMode='MOVE';let camera={x:WORLD.w/2,y:WORLD.h/2,w:WORLD.w,h:WORLD.h};let drag=null;let shiftDrag=null;let toastTimer=null;
 function formationOffset(i){const gx=(i%3)-1,gy=Math.floor(i/3)-1;return{x:gx*170*S,y:gy*170*S};}
 const svg=document.getElementById('map');
@@ -281,6 +281,12 @@ function buildMap(){
     E('feColorMatrix',{in:'n',type:'matrix',values:'0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.5 0.5 0.5 0 0',result:'na'}),
     E('feComposite',{in:'na',in2:'SourceGraphic',operator:'in'})
   );
+  // Soft neon blur for the live front-line trace (see drawSubregions/updateSubregionColors).
+  defs.append(E('filter',{id:'frontGlow',x:'-60%',y:'-60%',width:'220%',height:'220%'}));
+  defs.lastChild.append(E('feGaussianBlur',{stdDeviation:55}));
+  // Heavy blur for the forest/hill biome color wash so it reads as a smooth tinted zone.
+  defs.append(E('filter',{id:'biomeBlur',x:'-100%',y:'-100%',width:'300%',height:'300%'}));
+  defs.lastChild.append(E('feGaussianBlur',{stdDeviation:220}));
   svg.append(defs);
   svg.append(E('rect',{width:WORLD.w,height:WORLD.h,fill:'url(#seaGrad)'}));
   // Ocean current / wave texture, scaled to the current scenario's world size — purely decorative.
@@ -310,6 +316,13 @@ function buildMap(){
       else if(k==='hill')hills.push([px,py,120+((x+y*2)%3)*40]);
     }
   }
+  // A soft blurred colour wash under the forest/hill icons — heavily blurred so neighbouring patches
+  // merge into one continuous tinted zone (no hard edges, same lesson as the subregion gradient fix)
+  // instead of the whole continent reading as a single flat brown regardless of terrain.
+  const biomeG=E('g',{filter:'url(#biomeBlur)'});
+  hills.forEach(([x,y,s])=>biomeG.append(E('circle',{cx:x,cy:y,r:s*2.4,fill:'#ab9663',opacity:'.28'})));
+  trees.forEach(([x,y,s])=>biomeG.append(E('circle',{cx:x,cy:y,r:s*3,fill:'#3f7350',opacity:'.24'})));
+  svg.append(biomeG);
   hills.forEach(([x,y,s])=>{const g=E('g',{opacity:'.55'});g.append(E('ellipse',{cx:x,cy:y+s*.18,rx:s,ry:s*.6,fill:'#8a7248',opacity:'.4'}));g.append(E('path',{d:`M${x-s} ${y+s*.3} Q${x} ${y-s*.55} ${x+s} ${y+s*.3}`,fill:'none',stroke:'#c9b378','stroke-width':16,opacity:'.5'}));g.append(E('path',{d:`M${x-s*.6} ${y+s*.42} Q${x} ${y-s*.18} ${x+s*.6} ${y+s*.42}`,fill:'none',stroke:'#c9b378','stroke-width':13,opacity:'.4'}));svg.append(g);});
   trees.forEach(([x,y,s])=>{const g=E('g',{opacity:'.9'});g.append(E('circle',{cx:x,cy:y,r:s+22,fill:'#1c3329',opacity:'.28'}));g.append(E('polygon',{points:`${x},${y-s*1.9} ${x-s},${y+s*.7} ${x+s},${y+s*.7}`,fill:'#2a5a3f',stroke:'#163526','stroke-width':17}));g.append(E('polygon',{points:`${x},${y-s*.8} ${x-s*.65},${y+s*1.1} ${x+s*.65},${y+s*1.1}`,fill:'#36704c',opacity:'.9'}));svg.append(g);});
   // Auto-generated coastal roads linking each side's own facilities, plus dashed trade routes through corridors.
@@ -365,7 +378,7 @@ document.getElementById('minimap').addEventListener('click',e=>{
 // Each cell's fill is set live by updateSubregionColors() to whoever controls the nearest facility, so
 // capturing ground anywhere immediately extends the painted border there — see nearestControlledSide().
 function drawSubregions(){
-  subregionFillEls=[];subregionCentroids=[];
+  subregionFillEls=[];subregionGlowEls=[];subregionCentroids=[];
   (scenario.subregions||[]).forEach(sr=>{
     const d=polyPath(sr.poly);
     const cx=sr.poly.reduce((s,p)=>s+p[0],0)/sr.poly.length,cy=sr.poly.reduce((s,p)=>s+p[1],0)/sr.poly.length;
@@ -376,16 +389,38 @@ function drawSubregions(){
     const fillEl=E('path',{d,fill:'url(#landGradCorridor)'});
     svg.append(fillEl);
     subregionFillEls.push(fillEl);
+    // A glowing front-line trace, toggled on only for cells that actually sit next to different-owned
+    // ground — this is the neon border-glow look, drawn along the real live frontier instead of a
+    // fixed grid line.
+    const glowEl=E('path',{d,fill:'none',stroke:'none','stroke-width':140,opacity:'0',filter:'url(#frontGlow)','stroke-linejoin':'round'});
+    svg.append(glowEl);
+    subregionGlowEls.push(glowEl);
+  });
+  buildSubregionNeighbors();
+}
+// Cheap once-per-map neighbor list (nearest few cells by centroid distance) so the front-line glow
+// can tell "am I next to different-owned ground" without needing real polygon adjacency.
+function buildSubregionNeighbors(){
+  const n=subregionCentroids.length;
+  subregionNeighbors=subregionCentroids.map((c,i)=>{
+    const dists=subregionCentroids.map((c2,j)=>({j,d:i===j?Infinity:Math.hypot(c.x-c2.x,c.y-c2.y)}));
+    dists.sort((a,b)=>a.d-b.d);
+    return dists.slice(0,6).map(x=>x.j);
   });
 }
 function updateSubregionColors(){
   const subs=scenario?.subregions||[];
+  const sides=subregionCentroids.map(c=>nearestControlledSide(c.x,c.y));
   for(let i=0;i<subs.length;i++){
     const el=subregionFillEls[i];if(!el)continue;
-    const c=subregionCentroids[i];
-    const side=nearestControlledSide(c.x,c.y);
+    const side=sides[i];
     el.setAttribute('fill',side===0?'url(#landGradTW)':side===1?'url(#landGradJP)':'url(#landGradCorridor)');
     el.setAttribute('fill-opacity',side<0?'.62':'.9');
+    const glowEl=subregionGlowEls[i];
+    if(!glowEl)continue;
+    const isFront=side>=0&&(subregionNeighbors[i]||[]).some(j=>sides[j]!==side);
+    glowEl.setAttribute('stroke',isFront?(side===0?'#8fd0ff':'#ff9a86'):'none');
+    glowEl.setAttribute('opacity',isFront?'.85':'0');
   }
 }
 // Mirrors the server's ridgeGap() geometry exactly: the ridge is a wall running perpendicular to the
