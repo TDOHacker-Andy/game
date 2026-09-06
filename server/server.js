@@ -38,6 +38,10 @@ const COUNTER = {
   TANK: { SF: 1.6 },
   SF: { AT: 1.6 },
 };
+// High ground is worth fighting for: a defender dug in on a hill or mountain pass takes noticeably
+// less damage, on top of already being slower to reach — this is what makes holding a chokepoint
+// (see scenarios' landmass `pass` fields) actually pay off instead of just being a speed bump.
+const TERRAIN_DEFENSE = { mountain: .55, hill: .78 };
 
 // Single mutable "currently active scenario" pointer. Room creation/handling always reloads it via
 // loadScenario(room.scenarioId) before touching geometry, so multiple rooms with different scenarios
@@ -257,10 +261,15 @@ function newState(code){
   return s;
 }
 function event(s,text,kind='info'){s.events.unshift({id:Date.now()+Math.random(),t:Math.floor(s.time),text,kind});s.events=s.events.slice(0,20);}
+// A unit standing in forest is harder to spot at range than one in the open — this is what makes
+// forest tactically worth using (not just a speed penalty), and it's why forest tiles are drawn on
+// the map instead of being purely decorative trees.
+function concealment(q){return terrainAt(q.x,q.y)==='forest'?.6:1;}
 function visible(s,q,side){
   if(q.side===side)return true;
-  if(s.units.filter(u=>u.active&&u.side===side).some(w=>Math.hypot(w.x-q.x,w.y-q.y)<=w.vision*(s.dayPhase==='NIGHT'?.72:1)))return true;
-  return s.facilities.some(f=>f.control===side&&!f.destroyed&&f.visionBoost&&Math.hypot(f.x-q.x,f.y-q.y)<=f.visionBoost);
+  const cc=concealment(q);
+  if(s.units.filter(u=>u.active&&u.side===side).some(w=>Math.hypot(w.x-q.x,w.y-q.y)<=w.vision*(s.dayPhase==='NIGHT'?.72:1)*cc))return true;
+  return s.facilities.some(f=>f.control===side&&!f.destroyed&&f.visionBoost&&Math.hypot(f.x-q.x,f.y-q.y)<=f.visionBoost*cc);
 }
 function filtered(r,side){const s=structuredClone(r.state);const known=new Set(s.units.filter(q=>visible(r.state,q,side)).map(q=>q.id));s.units=s.units.filter(q=>known.has(q.id));return s;}
 function snap(r){for(const p of r.players)send(p.ws,{t:'snapshot',state:filtered(r,p.side)});}
@@ -269,7 +278,7 @@ function scenarioMeta(){
     id:CURRENT.id,name:CURRENT.name,mode:CURRENT.mode,hasNavy:CURRENT.hasNavy,
     world:CURRENT.world,
     landmasses:CURRENT.landmasses.map(l=>({id:l.id,kind:l.kind,side:l.side??null,poly:l.poly,pass:l.pass||null,facilityId:l.facilityId||null})),
-    corridors:CURRENT.corridors,passes:CURRENT.passes,
+    corridors:CURRENT.corridors,passes:CURRENT.passes,terrain:CURRENT.terrain||null,
     facilities:CURRENT.facilities.map(f=>({id:f.id,name:f.name,type:f.type,x:f.x,y:f.y,side:f.side})),
     homePoints:CURRENT.homePoints,
     sides:CURRENT.sides,labels:CURRENT.labels||[],
@@ -392,7 +401,7 @@ function updateFerries(s){
   }
 }
 function chooseTarget(s,a){let best=null,bd=Infinity;for(const b of s.units){if(!b.active||b.side===a.side||b.reserve)continue;if(!visible(s,b,a.side))continue;const d=Math.hypot(a.x-b.x,a.y-b.y);if(d<=UNIT[a.kind].range&&d<bd){best=b;bd=d;}}return best;}
-function fire(s,a,b,dt){const ua=UNIT[a.kind],ub=UNIT[b.kind];a.fireCd=Math.max(0,a.fireCd-dt);if(a.fireCd>0||a.ammo<=0)return;a.fireCd=1/ua.rof;a.ammo=Math.max(0,a.ammo-.15);const hit=Math.random()<ua.acc*(1-a.suppression*.4);const fx={kind:hit?'hit':'miss',x1:a.x,y1:a.y,x2:b.x,y2:b.y,t:1.0,damage:0};s.fx.push(fx);if(!hit)return;let dmg=ua.dmg*(.75+.5*Math.random());if(ub.armor>0)dmg*=ua.pen>=ub.armor?.92:.18;dmg*=COUNTER[a.kind]?.[b.kind]||1;if(b.stance==='DEFEND')dmg*=.8;dmg*=a.effectiveness;b.personnel=Math.max(0,b.personnel-dmg);b.lastDamage=dmg;b.suppression=clamp(b.suppression+(ua.dmg>20?.16:.07),0,1);b.morale=clamp(b.morale-(ua.dmg>20?.025:.012),.05,1);fx.damage=Math.round(dmg*10)/10;event(s,`${UNIT[a.kind].name} → ${UNIT[b.kind].name}｜命中 ${dmg.toFixed(1)}`,'combat');
+function fire(s,a,b,dt){const ua=UNIT[a.kind],ub=UNIT[b.kind];a.fireCd=Math.max(0,a.fireCd-dt);if(a.fireCd>0||a.ammo<=0)return;a.fireCd=1/ua.rof;a.ammo=Math.max(0,a.ammo-.15);const hit=Math.random()<ua.acc*(1-a.suppression*.4);const fx={kind:hit?'hit':'miss',x1:a.x,y1:a.y,x2:b.x,y2:b.y,t:1.0,damage:0};s.fx.push(fx);if(!hit)return;let dmg=ua.dmg*(.75+.5*Math.random());if(ub.armor>0)dmg*=ua.pen>=ub.armor?.92:.18;dmg*=COUNTER[a.kind]?.[b.kind]||1;if(b.stance==='DEFEND')dmg*=.8;dmg*=a.effectiveness;dmg*=TERRAIN_DEFENSE[terrainAt(b.x,b.y)]||1;b.personnel=Math.max(0,b.personnel-dmg);b.lastDamage=dmg;b.suppression=clamp(b.suppression+(ua.dmg>20?.16:.07),0,1);b.morale=clamp(b.morale-(ua.dmg>20?.025:.012),.05,1);fx.damage=Math.round(dmg*10)/10;event(s,`${UNIT[a.kind].name} → ${UNIT[b.kind].name}｜命中 ${dmg.toFixed(1)}`,'combat');
   if(b.personnel<=0){
     b.active=false;a.kills++;s.losses[b.side]++;event(s,`${UNIT[b.kind].name} 被殲滅`,'combat');s.fx.push({kind:'death',x1:b.x,y1:b.y,x2:b.x,y2:b.y,t:1.2,damage:0});
     if(b.kind==='TRANSPORT'&&b.cargo.length){for(const cid of b.cargo){const carried=s.units.find(u=>u.id===cid);if(carried){carried.active=false;carried.personnel=0;s.losses[carried.side]++;event(s,`${UNIT[carried.kind].name} 隨運輸艦沉沒`,'combat');s.fx.push({kind:'death',x1:carried.x,y1:carried.y,x2:carried.x,y2:carried.y,t:1.2,damage:0});}}}

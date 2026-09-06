@@ -23,11 +23,13 @@ export default {
   ],
   landmasses: [
     { id: 'NORTH', kind: 'home0', side: 0, poly: NORTH_POLY },
-    { id: 'BUFFER', kind: 'neutral', poly: BUFFER_POLY },
+    { id: 'BUFFER', kind: 'neutral', poly: BUFFER_POLY, pass: { x: 8397.4, y: 15052.2 } },
     { id: 'SOUTH', kind: 'home1', side: 1, poly: SOUTH_POLY },
   ],
   corridors: [],
-  passes: [],
+  // The whole central buffer is high ground — slow to cross, mountain core near the middle fort, and
+  // a real defensive bonus for whoever holds it (see TERRAIN_DEFENSE in server.js).
+  passes: [{ x: 8397.4, y: 15052.2, name: '中央山隘' }],
   terrain: {
     hill: { dx: 900, dy: 760, thresh: 0.9 },
     forest: { dx: 420, dy: 480, dxy: 650, thresh: 1.15 },
@@ -53,7 +55,7 @@ export default {
     {id:'S-WATCH', name:'高雄哨塔', type:'WATCHTOWER', x:10397.4,y:18552.2, side:1, hp:380, r:510, visionBoost:1400},
     {id:'B-W1', name:'西段前哨', type:'WATCHTOWER', x:4297.4,y:16452.2, side:-1, hp:400, r:520, visionBoost:1400},
     {id:'B-W2', name:'西段要塞', type:'FORT', x:6297.4,y:16452.2, side:-1, hp:620, r:700},
-    {id:'B-MID', name:'中線兵工廠', type:'FACTORY', x:8397.4,y:15052.2, side:-1, hp:800, r:660},
+    {id:'B-MID', name:'中線山隘兵工廠', type:'FACTORY', x:8397.4,y:15052.2, side:-1, hp:800, r:660},
     {id:'B-E1', name:'東段要塞', type:'FORT', x:10397.4,y:14052.2, side:-1, hp:620, r:700},
     {id:'B-E2', name:'東段雷達站', type:'RADAR', x:12497.4,y:14852.2, side:-1, hp:500, r:590, visionBoost:2000},
   ],

@@ -113,7 +113,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:1px solid #5c4530;backgr
     </div>
     <div class="prepRight">
       <div><div style="font-size:18px;font-weight:900">開戰前檢查</div>
-        <div class="note" style="margin-top:12px">① 已購買部隊會立即出現在地圖。<br>② 點擊或拖曳部署到自己的領土。<br>③ 不需要任何編組面板；進入戰鬥後完全自己操控。<br>④ 戰鬥開始後建軍 UI 消失，只留下地圖與必要 HUD。<br>⑤ 觸控板：單指拖曳平移；點己方部隊選取（即使已選別的部隊也一定能切換）；點地面下令；Shift＋拖曳框選；空白鍵取消選取。<br>⑥ 據點可以「駐留佔領」（部隊在旁不受阻擋地停留）或「砲擊攻陷」（打光血量直接易主）拿下，任選其一。<br>⑦ 兵種克制：穿甲需≥目標裝甲才會造成完整傷害，否則大幅減傷——反裝甲部隊穿甲最高、是戰車剋星；一般步兵穿甲低，難以打穿裝甲目標，建議跟戰車／反裝甲混編出擊。</div>
+        <div class="note" style="margin-top:12px">① 已購買部隊會立即出現在地圖。<br>② 點擊或拖曳部署到自己的領土。<br>③ 不需要任何編組面板；進入戰鬥後完全自己操控。<br>④ 戰鬥開始後建軍 UI 消失，只留下地圖與必要 HUD。<br>⑤ 觸控板：單指拖曳平移；點己方部隊選取（即使已選別的部隊也一定能切換）；點地面下令；Shift＋拖曳框選；空白鍵取消選取。<br>⑥ 據點可以「駐留佔領」（部隊在旁不受阻擋地停留）或「砲擊攻陷」（打光血量直接易主）拿下，任選其一。<br>⑦ 兵種克制：穿甲需≥目標裝甲才會造成完整傷害，否則大幅減傷——反裝甲部隊穿甲最高、是戰車剋星；一般步兵穿甲低，難以打穿裝甲目標，建議跟戰車／反裝甲混編出擊。<br>⑧ 地形：森林（深綠樹叢）會讓部隊更難被遠距離發現；丘陵／山隘（土黃色高地，圖上會有山峰標記）移動變慢，但駐守的部隊會大幅減少受到的傷害——控制山隘要塞是打防守戰的關鍵。</div>
       </div>
       <button class="readyBtn" id="ready">✓ 準備開始</button>
     </div>
@@ -183,6 +183,21 @@ function pointerWorld(e){const r=svg.getBoundingClientRect();const px=(e.clientX
 function faction(side){return side===0?'#5b9bdb':'#e2665a'}
 function pointInPoly(x,y,p){let inside=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const xi=p[i][0],yi=p[i][1],xj=p[j][0],yj=p[j][1];const hit=((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi+1e-9)+xi);if(hit)inside=!inside;}return inside;}
 function pointInMapLand(x,y){return (scenario?.landmasses||[]).some(lm=>pointInPoly(x,y,lm.poly));}
+function landmassAt(x,y){return (scenario?.landmasses||[]).find(lm=>pointInPoly(x,y,lm.poly));}
+// Mirrors the server's terrainAt() exactly (same formulas, same precedence) purely so the map can show
+// the player the terrain that's actually shaping movement speed, defense, and concealment — a mountain
+// pass territory is drawn as a mountain because it *is* one to the sim, not as decoration.
+function terrainKindAt(x,y){
+  const lm=landmassAt(x,y);
+  if(!lm)return null;
+  if(lm.kind==='neutral'&&lm.pass)return Math.hypot(x-lm.pass.x,y-lm.pass.y)<1100?'mountain':'hill';
+  const tt=scenario?.terrain;
+  if(tt){
+    if(tt.forest){const{dx,dy,dxy,thresh}=tt.forest;if(Math.sin(x/dx)+Math.cos(y/dy)+Math.sin((x-y)/dxy)>thresh)return 'forest';}
+    if(tt.hill){const{dx,dy,thresh}=tt.hill;if(Math.sin(x/dx)+Math.cos(y/dy)>thresh)return 'hill';}
+  }
+  return 'plain';
+}
 function polyPath(pts){return pts.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ')+' Z';}
 const KIND_ORDER={home0:0,home1:1,isolated:2,neutral:3};
 const GRAD_BY_KIND={home0:'landGradTW',home1:'landGradJP',isolated:'landGradMID',neutral:'landGradCorridor'};
@@ -247,10 +262,21 @@ function buildMap(){
     svg.append(E('path',{d,fill:'url(#grid)'}));
     if(!lm.facilityId)svg.append(E('path',{d,fill:'none',stroke:'#d4b97c','stroke-width':105,opacity:'.35'}));
   });
-  // Forest clusters scattered across all land, density adapted to the current world size.
-  const stepY=Math.max(400,WORLD.h/70),stepX=Math.max(450,WORLD.w/70);
-  const trees=[];for(let y=stepY/2;y<WORLD.h;y+=stepY){for(let x=stepX/2;x<WORLD.w;x+=stepX){if(((x/140|0)+(y/140|0))%5!==0){const px=x+Math.sin(y+x)*220,py=y+Math.cos(x)*200;trees.push([px,py,58+((x+y)%3)*15]);}}}
-  trees.forEach(([x,y,s])=>{if(pointInMapLand(x,y)){const g=E('g',{opacity:'.9'});g.append(E('circle',{cx:x,cy:y,r:s+22,fill:'#1c3329',opacity:'.28'}));g.append(E('polygon',{points:`${x},${y-s*1.9} ${x-s},${y+s*.7} ${x+s},${y+s*.7}`,fill:'#2a5a3f',stroke:'#163526','stroke-width':17}));g.append(E('polygon',{points:`${x},${y-s*.8} ${x-s*.65},${y+s*1.1} ${x+s*.65},${y+s*1.1}`,fill:'#36704c',opacity:'.9'}));svg.append(g);}});
+  // Forest and hill dressing sampled from the *actual* terrain formula (terrainKindAt), so what the
+  // player sees on the map is exactly the terrain that's slowing their units, hiding them, or (on a
+  // mountain pass) shielding them — not unrelated decoration scattered on top.
+  const stepY=Math.max(350,WORLD.h/85),stepX=Math.max(380,WORLD.w/85);
+  const trees=[],hills=[];
+  for(let y=stepY/2;y<WORLD.h;y+=stepY){
+    for(let x=stepX/2;x<WORLD.w;x+=stepX){
+      const px=x+Math.sin(y+x)*stepX*.22,py=y+Math.cos(x)*stepY*.22;
+      const k=terrainKindAt(px,py);
+      if(k==='forest')trees.push([px,py,58+((x+y)%3)*15]);
+      else if(k==='hill')hills.push([px,py,120+((x+y*2)%3)*40]);
+    }
+  }
+  hills.forEach(([x,y,s])=>{const g=E('g',{opacity:'.55'});g.append(E('ellipse',{cx:x,cy:y+s*.18,rx:s,ry:s*.6,fill:'#8a7248',opacity:'.4'}));g.append(E('path',{d:`M${x-s} ${y+s*.3} Q${x} ${y-s*.55} ${x+s} ${y+s*.3}`,fill:'none',stroke:'#c9b378','stroke-width':16,opacity:'.5'}));g.append(E('path',{d:`M${x-s*.6} ${y+s*.42} Q${x} ${y-s*.18} ${x+s*.6} ${y+s*.42}`,fill:'none',stroke:'#c9b378','stroke-width':13,opacity:'.4'}));svg.append(g);});
+  trees.forEach(([x,y,s])=>{const g=E('g',{opacity:'.9'});g.append(E('circle',{cx:x,cy:y,r:s+22,fill:'#1c3329',opacity:'.28'}));g.append(E('polygon',{points:`${x},${y-s*1.9} ${x-s},${y+s*.7} ${x+s},${y+s*.7}`,fill:'#2a5a3f',stroke:'#163526','stroke-width':17}));g.append(E('polygon',{points:`${x},${y-s*.8} ${x-s*.65},${y+s*1.1} ${x+s*.65},${y+s*1.1}`,fill:'#36704c',opacity:'.9'}));svg.append(g);});
   // Auto-generated coastal roads linking each side's own facilities, plus dashed trade routes through corridors.
   autoRoads().forEach(p=>{const d=p.map((a,j)=>(j?'L':'M')+a[0]+' '+a[1]).join(' ');svg.append(E('path',{d,fill:'none',stroke:'#1b241f','stroke-width':315,opacity:'.55','stroke-linecap':'round'}));svg.append(E('path',{d,fill:'none',stroke:'#c0ab7c','stroke-width':97,opacity:'.85','stroke-linecap':'round','stroke-dasharray':'252 38'}));});
   (scenario.corridors||[]).forEach(c=>{const p=[[c.a.x,c.a.y],[c.pass.x,c.pass.y],[c.b.x,c.b.y]];const d=p.map((a,j)=>(j?'L':'M')+a[0]+' '+a[1]).join(' ');svg.append(E('path',{d,fill:'none',stroke:'#1b241f','stroke-width':200,opacity:'.55','stroke-linecap':'round'}));svg.append(E('path',{d,fill:'none',stroke:'#e2c987','stroke-width':70,opacity:'.85','stroke-linecap':'round','stroke-dasharray':'160 60'}));});
@@ -417,7 +443,19 @@ function drawUnit(g,q){
     gg.append(sg);
   }
   if(q.side===0){gg.append(E('circle',{cx:-193,cy:-84,r:42,fill:'none',stroke:'#eaf6ff','stroke-width':19}));}else{gg.append(E('circle',{cx:-193,cy:-84,r:36,fill:'#ffe1c8'}));}
-  const hp=clamp(q.personnel/Math.max(1,q.maxPersonnel),0,1);gg.append(E('rect',{x:-221,y:-378,width:441,height:50,rx:21,fill:'#081014',stroke:'#0b1519','stroke-width':17}));gg.append(E('rect',{x:-206,y:-363,width:412*hp,height:21,rx:11,fill:hp>.6?'#5ed08f':hp>.3?'#e3c761':'#ff5d60'}));gg.append(E('text',{x:0,y:305,'text-anchor':'middle',fill:'#f5f7f8','font-size':134,'font-weight':900,style:'paint-order:stroke;stroke:#091216;stroke-width:29'},`#${q.id}`));g.append(gg)}
+  const hp=clamp(q.personnel/Math.max(1,q.maxPersonnel),0,1);gg.append(E('rect',{x:-221,y:-378,width:441,height:50,rx:21,fill:'#081014',stroke:'#0b1519','stroke-width':17}));gg.append(E('rect',{x:-206,y:-363,width:412*hp,height:21,rx:11,fill:hp>.6?'#5ed08f':hp>.3?'#e3c761':'#ff5d60'}));gg.append(E('text',{x:0,y:305,'text-anchor':'middle',fill:'#f5f7f8','font-size':134,'font-weight':900,style:'paint-order:stroke;stroke:#091216;stroke-width:29'},`#${q.id}`));
+  // Veteran chevrons — a quiet, earned reward for units that rack up kills instead of just a kill counter.
+  const kills=q.kills||0;
+  if(kills>=3){
+    const tier=kills>=10?'#e8c667':kills>=6?'#c9d2d8':'#b5763f',cnt=kills>=10?3:kills>=6?2:1;
+    for(let i=0;i<cnt;i++){const cy=-432-i*38;gg.append(E('path',{d:`M-44 ${cy+24} L0 ${cy} L44 ${cy+24}`,fill:'none',stroke:tier,'stroke-width':18,'stroke-linecap':'round'}));}
+  }
+  // Smoke on a badly damaged unit — a visible reason to pull it back, not just a number in the HP bar.
+  if(hp>0&&hp<.4){
+    const seed=q.id*97;
+    for(let i=0;i<3;i++){const drift=((Date.now()/9+seed*131+i*700)%1400)/1400,sx=(i-1)*70,sy=-90-drift*260;gg.append(E('circle',{cx:sx,cy:sy,r:34+drift*46,fill:'#8a8a86',opacity:(1-drift)*.4}));}
+  }
+  g.append(gg)}
 function drawFx(){const old=svg.querySelector('#fxLayer');if(old)old.remove();const g=E('g',{id:'fxLayer'});for(const fx of state.fx||[]){const p=fx.t;const a=Math.max(0,Math.min(1,p));
   if(fx.kind==='death'){
     g.append(E('circle',{cx:fx.x2,cy:fx.y2,r:126+(1-a)*504,fill:'none',stroke:'#ff5d4a',opacity:.85*a,'stroke-width':55}));
