@@ -60,6 +60,20 @@ function islandOf(x,y){const id=terrainLandOf(x,y);if(!id)return null;const k=la
 function countryAt(x,y){const id=terrainLandOf(x,y);if(!id)return -1;const k=landmassById(id).kind;return k==='home0'?0:k==='home1'?1:-1;}
 function onLand(x,y){return terrainLandOf(x,y)!==null;}
 function onMid(x,y){const id=terrainLandOf(x,y);return !!id&&landmassById(id).kind==='isolated';}
+function distToSegment(px,py,ax,ay,bx,by){
+  const dx=bx-ax,dy=by-ay,len2=dx*dx+dy*dy;
+  const t=len2>0?clamp(((px-ax)*dx+(py-ay)*dy)/len2,0,1):0;
+  return Math.hypot(px-(ax+dx*t),py-(ay+dy*t));
+}
+function onHighway(x,y){
+  const road=CURRENT.terrain?.road;if(!road)return false;
+  const w=road.width||600;
+  for(let i=0;i<road.points.length-1;i++){
+    const [ax,ay]=road.points[i],[bx,by]=road.points[i+1];
+    if(distToSegment(x,y,ax,ay,bx,by)<w)return true;
+  }
+  return false;
+}
 function terrainAt(x,y){
   const id=terrainLandOf(x,y);
   if(!id)return 'water';
@@ -72,9 +86,12 @@ function terrainAt(x,y){
   if(tt){
     if(tt.mountain){const {dx,dy,dxy,thresh}=tt.mountain;if(Math.sin(x/dx)+Math.cos(y/dy)+Math.sin((x+y)/dxy)>thresh)return 'mountain';}
     if(tt.urban&&tt.urban.some(u=>u.side===lm.side&&Math.hypot(x-u.x,y-u.y)<u.r))return 'urban';
+    // The highway takes precedence over forest/hill it passes through (a paved road clears the terrain
+    // around it) — this is the one deliberately fast, low-risk route both sides are drawn to, versus the
+    // slower off-road terrain either side of it. See onHighway()/scenario terrain.road.
+    if(onHighway(x,y))return 'road';
     if(tt.forest){const {dx,dy,dxy,thresh}=tt.forest;if(Math.sin(x/dx)+Math.cos(y/dy)+Math.sin((x-y)/dxy)>thresh)return 'forest';}
     if(tt.hill){const {dx,dy,thresh}=tt.hill;if(Math.sin(x/dx)+Math.cos(y/dy)>thresh)return 'hill';}
-    if(tt.road&&tt.road[lm.side]!=null&&Math.abs(y-tt.road[lm.side])<(tt.road.width||420))return 'road';
     if(tt.swamp&&tt.swamp.side===lm.side&&Math.hypot(x-tt.swamp.x,y-tt.swamp.y)<tt.swamp.r)return 'swamp';
   }
   return 'plain';
@@ -422,7 +439,11 @@ function updateFerries(s){
   }
 }
 function chooseTarget(s,a){let best=null,bd=Infinity;for(const b of s.units){if(!b.active||b.side===a.side||b.reserve)continue;if(!visible(s,b,a.side))continue;const d=Math.hypot(a.x-b.x,a.y-b.y);if(d<=UNIT[a.kind].range&&d<bd){best=b;bd=d;}}return best;}
-function fire(s,a,b,dt){const ua=UNIT[a.kind],ub=UNIT[b.kind];a.fireCd=Math.max(0,a.fireCd-dt);if(a.fireCd>0||a.ammo<=0)return;a.fireCd=1/ua.rof;a.ammo=Math.max(0,a.ammo-.15);const hit=Math.random()<ua.acc*(1-a.suppression*.4);const fx={kind:hit?'hit':'miss',x1:a.x,y1:a.y,x2:b.x,y2:b.y,t:1.0,damage:0};s.fx.push(fx);if(!hit)return;let dmg=ua.dmg*(.75+.5*Math.random());if(ub.armor>0)dmg*=ua.pen>=ub.armor?.92:.18;dmg*=COUNTER[a.kind]?.[b.kind]||1;if(b.stance==='DEFEND')dmg*=.8;dmg*=a.effectiveness;dmg*=TERRAIN_DEFENSE[terrainAt(b.x,b.y)]||1;b.personnel=Math.max(0,b.personnel-dmg);b.lastDamage=dmg;b.suppression=clamp(b.suppression+(ua.dmg>20?.16:.07),0,1);b.morale=clamp(b.morale-(ua.dmg>20?.025:.012),.05,1);fx.damage=Math.round(dmg*10)/10;event(s,`${UNIT[a.kind].name} → ${UNIT[b.kind].name}｜命中 ${dmg.toFixed(1)}`,'combat');
+function fire(s,a,b,dt){const ua=UNIT[a.kind],ub=UNIT[b.kind];a.fireCd=Math.max(0,a.fireCd-dt);if(a.fireCd>0||a.ammo<=0)return;a.fireCd=1/ua.rof;a.ammo=Math.max(0,a.ammo-.15);const hit=Math.random()<ua.acc*(1-a.suppression*.4);const fx={kind:hit?'hit':'miss',x1:a.x,y1:a.y,x2:b.x,y2:b.y,t:1.0,damage:0};s.fx.push(fx);if(!hit)return;let dmg=ua.dmg*(.75+.5*Math.random());if(ub.armor>0)dmg*=ua.pen>=ub.armor?.92:.18;dmg*=COUNTER[a.kind]?.[b.kind]||1;if(b.stance==='DEFEND')dmg*=.8;dmg*=a.effectiveness;dmg*=TERRAIN_DEFENSE[terrainAt(b.x,b.y)]||1;
+  // Ambush: firing from forest concealment while the target's side still can't see you back is a
+  // genuine sucker-punch, not just a defensive perk — this is what makes forest worth attacking from,
+  // not only hiding in.
+  if(terrainAt(a.x,a.y)==='forest'&&!visible(s,a,b.side))dmg*=1.5;b.personnel=Math.max(0,b.personnel-dmg);b.lastDamage=dmg;b.suppression=clamp(b.suppression+(ua.dmg>20?.16:.07),0,1);b.morale=clamp(b.morale-(ua.dmg>20?.025:.012),.05,1);fx.damage=Math.round(dmg*10)/10;event(s,`${UNIT[a.kind].name} → ${UNIT[b.kind].name}｜命中 ${dmg.toFixed(1)}`,'combat');
   if(b.personnel<=0){
     b.active=false;a.kills++;s.losses[b.side]++;event(s,`${UNIT[b.kind].name} 被殲滅`,'combat');s.fx.push({kind:'death',x1:b.x,y1:b.y,x2:b.x,y2:b.y,t:1.2,damage:0});
     if(b.kind==='TRANSPORT'&&b.cargo.length){for(const cid of b.cargo){const carried=s.units.find(u=>u.id===cid);if(carried){carried.active=false;carried.personnel=0;s.losses[carried.side]++;event(s,`${UNIT[carried.kind].name} 隨運輸艦沉沒`,'combat');s.fx.push({kind:'death',x1:carried.x,y1:carried.y,x2:carried.x,y2:carried.y,t:1.2,damage:0});}}}

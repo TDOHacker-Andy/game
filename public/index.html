@@ -175,7 +175,11 @@ const SPRITE={
 // corridors/passes/sides/labels all come from scenario.* instead of hardcoded map constants, so the
 // same client works for any scenario the server knows about.
 let scenario=null,scenarioList=[];
-let territoryFillEls={},territoryBorderEls={};
+// Ownership is painted onto the fine subregion mosaic (see drawSubregions/updateSubregionColors)
+// instead of onto the big landmass polygons — each cell's color is whichever side currently controls
+// the nearest facility, recomputed live every snapshot, so the border is exactly "how far you've
+// actually fought and captured" rather than a whole territory flipping the instant one facility falls.
+let subregionFillEls=[],subregionCentroids=[],miniSubFillEls=[];
 let state={phase:'LOBBY',units:[],facilities:[],events:[],budget:[30000,30000],losses:[0,0],time:0,front:0};let side=0,ws=null,selectedIds=[],commandMode='MOVE';let camera={x:WORLD.w/2,y:WORLD.h/2,w:WORLD.w,h:WORLD.h};let drag=null;let shiftDrag=null;let toastTimer=null;
 function formationOffset(i){const gx=(i%3)-1,gy=Math.floor(i/3)-1;return{x:gx*170*S,y:gy*170*S};}
 const svg=document.getElementById('map');
@@ -192,27 +196,47 @@ function zoomAt(f){const minW=WORLD.w*0.042,minH=WORLD.h*0.027;const nw=Math.max
 function pointerWorld(e){const r=svg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;return{x:(camera.x-camera.w/2)+px*camera.w,y:(camera.y-camera.h/2)+py*camera.h}}
 function faction(side){return side===0?'#5b9bdb':'#e2665a'}
 function pointInPoly(x,y,p){let inside=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const xi=p[i][0],yi=p[i][1],xj=p[j][0],yj=p[j][1];const hit=((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi+1e-9)+xi);if(hit)inside=!inside;}return inside;}
-function pointInMapLand(x,y){return (scenario?.landmasses||[]).some(lm=>pointInPoly(x,y,lm.poly));}
 function landmassAt(x,y){return (scenario?.landmasses||[]).find(lm=>pointInPoly(x,y,lm.poly));}
+// Whoever controls this point's nearest facility owns it — deliberately the nearest facility of ANY
+// control state, not the nearest controlled one. That keeps a home HQ's influence from reaching clear
+// across the map just because the facilities in between happen to be neutral: a cell's ownership only
+// ever flips when the facility that's actually closest to it changes hands.
+function nearestControlledSide(cx,cy){
+  let best=null,bestD=Infinity;
+  for(const f of state.facilities||[]){
+    if(f.destroyed)continue;
+    const d=Math.hypot(f.x-cx,f.y-cy);
+    if(d<bestD){bestD=d;best=f;}
+  }
+  return best?best.control:-1;
+}
 // Mirrors the server's terrainAt() exactly (same formulas, same precedence) purely so the map can show
 // the player the terrain that's actually shaping movement speed, defense, and concealment — a mountain
 // pass territory is drawn as a mountain because it *is* one to the sim, not as decoration.
+function distToSegment(px,py,ax,ay,bx,by){
+  const dx=bx-ax,dy=by-ay,len2=dx*dx+dy*dy;
+  const t=len2>0?clamp(((px-ax)*dx+(py-ay)*dy)/len2,0,1):0;
+  return Math.hypot(px-(ax+dx*t),py-(ay+dy*t));
+}
+function onHighway(x,y){
+  const road=scenario?.terrain?.road;if(!road)return false;
+  const w=road.width||600;
+  for(let i=0;i<road.points.length-1;i++){const[ax,ay]=road.points[i],[bx,by]=road.points[i+1];if(distToSegment(x,y,ax,ay,bx,by)<w)return true;}
+  return false;
+}
 function terrainKindAt(x,y){
   const lm=landmassAt(x,y);
   if(!lm)return null;
   if(lm.kind==='neutral'&&lm.pass)return Math.hypot(x-lm.pass.x,y-lm.pass.y)<1100?'mountain':'hill';
   const tt=scenario?.terrain;
   if(tt){
+    if(onHighway(x,y))return 'road';
     if(tt.forest){const{dx,dy,dxy,thresh}=tt.forest;if(Math.sin(x/dx)+Math.cos(y/dy)+Math.sin((x-y)/dxy)>thresh)return 'forest';}
     if(tt.hill){const{dx,dy,thresh}=tt.hill;if(Math.sin(x/dx)+Math.cos(y/dy)>thresh)return 'hill';}
   }
   return 'plain';
 }
 function polyPath(pts){return pts.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ')+' Z';}
-const KIND_ORDER={home0:0,home1:1,isolated:2,neutral:3};
-const GRAD_BY_KIND={home0:'landGradTW',home1:'landGradJP',isolated:'landGradMID',neutral:'landGradCorridor'};
-const MINI_COLOR_BY_KIND={home0:'#4c7550',home1:'#6b5040',isolated:'#8a7a52',neutral:'#6b6350'};
-function sortedLandmasses(){return (scenario?.landmasses||[]).slice().sort((a,b)=>(KIND_ORDER[a.kind]??9)-(KIND_ORDER[b.kind]??9));}
 // Facility positions come from scenario.facilities (server-provided base layout). Roads are generated
 // generically by connecting each side's own facilities to their nearest same-side neighbour, so any
 // scenario gets a reasonable-looking road network without hand-tuned coordinates per map.
@@ -234,14 +258,14 @@ function buildMap(){
   svg.setAttribute('viewBox',`0 0 ${WORLD.w} ${WORLD.h}`);
   const defs=E('defs');
   defs.append(E('linearGradient',{id:'seaGrad',x1:'0',y1:'0',x2:'0',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#0a2b38'}),E('stop',{offset:'1','stop-color':'#061922'}));
-  // Natural terrain palette — territory ground color is picked once per territory (deterministic, not
-  // tied to who owns it) so the continent reads as varied real terrain; ownership is instead shown by a
-  // colored border traced around each territory (see the border pass at the end of buildMap), the way a
-  // political map draws national borders over unchanging physical terrain.
+  // landGradTW/JP paint a controlled subregion cell; landGradCorridor is both the fixed neutral terrain
+  // tone under everything and an uncontrolled cell's color — see drawSubregions/updateSubregionColors.
   defs.append(E('linearGradient',{id:'landGradTW',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#4f7f9c'}),E('stop',{offset:'1','stop-color':'#294654'}));
   defs.append(E('linearGradient',{id:'landGradJP',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#9c5749'}),E('stop',{offset:'1','stop-color':'#542c25'}));
-  defs.append(E('linearGradient',{id:'landGradMID',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#8a7a52'}),E('stop',{offset:'1','stop-color':'#5c4f34'}));
   defs.append(E('linearGradient',{id:'landGradCorridor',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#8f8570'}),E('stop',{offset:'1','stop-color':'#4c473c'}));
+  // Diagonal light-to-shadow gradient for the mountain-pass peaks, so the rock face reads as a raised
+  // 3D landform (lit from the upper-left) instead of a flat colored triangle.
+  defs.append(E('linearGradient',{id:'mountainShade',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#a5926e'}),E('stop',{offset:'.5','stop-color':'#7c6a4e'}),E('stop',{offset:'1','stop-color':'#453824'}));
   defs.append(E('pattern',{id:'grid',width:504,height:504,patternUnits:'userSpaceOnUse'}));defs.lastChild.append(E('path',{d:'M504 0H0V504',fill:'none',stroke:'#ffffff',opacity:'.025','stroke-width':4}));
   defs.append(E('filter',{id:'soft',x:'-30%',y:'-30%',width:'160%',height:'160%'}));defs.lastChild.append(E('feDropShadow',{dx:0,dy:17,stdDeviation:21,'flood-color':'#000','flood-opacity':'.45'}));
   // Parchment/relief texture stamped over every landmass fill — breaks up the otherwise flat gradient
@@ -257,20 +281,15 @@ function buildMap(){
   // Ocean current / wave texture, scaled to the current scenario's world size — purely decorative.
   const waves=[0.32,0.45,0.58].map(f=>{const y=WORLD.h*f;return `M${WORLD.w*0.15} ${y} Q${WORLD.w*0.35} ${y-WORLD.h*0.02} ${WORLD.w*0.5} ${y+WORLD.h*0.01} T${WORLD.w*0.8} ${y-WORLD.h*0.015}`;});
   waves.forEach(d=>svg.append(E('path',{d,fill:'none',stroke:'#7fb8c9','stroke-width':42,opacity:'.12'})));
-  // Every landmass the current scenario defines. A landmass tied to a single facility (territory-conquest
-  // style maps) gets a live-updating fill AND a matching border trace (territoryFillEls/territoryBorderEls)
-  // so the ground itself is colored by whoever currently controls it — the color advances with your army,
-  // not just a thin line at the edge — see updateTerritoryColors().
-  territoryFillEls={};territoryBorderEls={};
-  sortedLandmasses().forEach(lm=>{
-    const grad=lm.facilityId?'landGradCorridor':(GRAD_BY_KIND[lm.kind]||'landGradCorridor');
+  // Every landmass is just physical terrain now — a fixed neutral ground tone plus the relief texture
+  // below. Who owns what is painted entirely by drawSubregions()/updateSubregionColors() on the finer
+  // mosaic on top, so there's no big block that flips all at once the instant one facility falls.
+  (scenario.landmasses||[]).forEach(lm=>{
     const d=polyPath(lm.poly);
-    const fillEl=E('path',{d,fill:`url(#${grad})`,stroke:'#a9c0b8','stroke-opacity':'.4','stroke-width':55,filter:'url(#soft)'});
-    svg.append(fillEl);
-    if(lm.facilityId)territoryFillEls[lm.id]=fillEl;
+    svg.append(E('path',{d,fill:'url(#landGradCorridor)',stroke:'#a9c0b8','stroke-opacity':'.4','stroke-width':55,filter:'url(#soft)'}));
     svg.append(E('path',{d,fill:'#1a1006',opacity:'.4',filter:'url(#terrainNoise)'}));
     svg.append(E('path',{d,fill:'url(#grid)'}));
-    if(!lm.facilityId)svg.append(E('path',{d,fill:'none',stroke:'#d4b97c','stroke-width':105,opacity:'.35'}));
+    svg.append(E('path',{d,fill:'none',stroke:'#d4b97c','stroke-width':105,opacity:'.3'}));
   });
   drawSubregions();
   // Forest and hill dressing sampled from the *actual* terrain formula (terrainKindAt), so what the
@@ -290,42 +309,38 @@ function buildMap(){
   trees.forEach(([x,y,s])=>{const g=E('g',{opacity:'.9'});g.append(E('circle',{cx:x,cy:y,r:s+22,fill:'#1c3329',opacity:'.28'}));g.append(E('polygon',{points:`${x},${y-s*1.9} ${x-s},${y+s*.7} ${x+s},${y+s*.7}`,fill:'#2a5a3f',stroke:'#163526','stroke-width':17}));g.append(E('polygon',{points:`${x},${y-s*.8} ${x-s*.65},${y+s*1.1} ${x+s*.65},${y+s*1.1}`,fill:'#36704c',opacity:'.9'}));svg.append(g);});
   // Auto-generated coastal roads linking each side's own facilities, plus dashed trade routes through corridors.
   autoRoads().forEach(p=>{const d=p.map((a,j)=>(j?'L':'M')+a[0]+' '+a[1]).join(' ');svg.append(E('path',{d,fill:'none',stroke:'#1b241f','stroke-width':315,opacity:'.55','stroke-linecap':'round'}));svg.append(E('path',{d,fill:'none',stroke:'#c0ab7c','stroke-width':97,opacity:'.85','stroke-linecap':'round','stroke-dasharray':'252 38'}));});
+  // The highway — home to home, the one deliberately fast route (see onHighway() in terrainKindAt).
+  // Drawn wider and brighter than the ordinary connector roads above so it reads as THE main route,
+  // the place both sides' main pushes are actually going to collide.
+  if(scenario.terrain?.road){
+    const d=scenario.terrain.road.points.map((a,j)=>(j?'L':'M')+a[0]+' '+a[1]).join(' ');
+    svg.append(E('path',{d,fill:'none',stroke:'#150f0a','stroke-width':520,opacity:'.6','stroke-linecap':'round'}));
+    svg.append(E('path',{d,fill:'none',stroke:'#e2c987','stroke-width':230,opacity:'.9','stroke-linecap':'round','stroke-dasharray':'340 60'}));
+  }
   (scenario.corridors||[]).forEach(c=>{const p=[[c.a.x,c.a.y],[c.pass.x,c.pass.y],[c.b.x,c.b.y]];const d=p.map((a,j)=>(j?'L':'M')+a[0]+' '+a[1]).join(' ');svg.append(E('path',{d,fill:'none',stroke:'#1b241f','stroke-width':200,opacity:'.55','stroke-linecap':'round'}));svg.append(E('path',{d,fill:'none',stroke:'#e2c987','stroke-width':70,opacity:'.85','stroke-linecap':'round','stroke-dasharray':'160 60'}));});
   (scenario.landmasses||[]).filter(lm=>lm.kind==='neutral'&&lm.pass).forEach(lm=>ridgeWallSegments(lm).forEach(drawRidgeWall));
   (scenario.passes||[]).forEach(p=>drawPass(p));
-  // A crisp border traced on top of every territory, same color as its fill (a shade richer) so the edge
-  // between two differently-owned territories reads as a clear frontier, not just where two flat colors
-  // happen to touch — kept live alongside the fill by updateTerritoryColors() each snapshot.
-  sortedLandmasses().forEach(lm=>{
-    if(!lm.facilityId)return;
-    const d=polyPath(lm.poly);
-    const borderEl=E('path',{d,fill:'none',stroke:'#8a7a52','stroke-width':110,opacity:'.85','stroke-linejoin':'round'});
-    svg.append(borderEl);
-    territoryBorderEls[lm.id]=borderEl;
-  });
   drawLabels();
   buildMinimap();
 }
-let miniFillEls={};
 function buildMinimap(){
   miniSvg.innerHTML='';
   miniSvg.setAttribute('viewBox',`0 0 ${WORLD.w} ${WORLD.h}`);
   miniSvg.append(E('rect',{width:WORLD.w,height:WORLD.h,fill:'#0a1f28'}));
-  miniFillEls={};
-  sortedLandmasses().forEach(lm=>{
-    const fill=lm.facilityId?'#6b6350':(MINI_COLOR_BY_KIND[lm.kind]||'#6b6350');
-    const el=E('path',{d:polyPath(lm.poly),fill});
+  miniSubFillEls=[];
+  (scenario.subregions||[]).forEach(sr=>{
+    const el=E('path',{d:polyPath(sr.poly),fill:'#6b6350'});
     miniSvg.append(el);
-    if(lm.facilityId)miniFillEls[lm.id]=el;
+    miniSubFillEls.push(el);
   });
 }
 function drawMinimapDynamic(){
-  for(const lm of scenario?.landmasses||[]){
-    if(!lm.facilityId)continue;
-    const el=miniFillEls[lm.id];if(!el)continue;
-    const f=(state.facilities||[]).find(x=>x.id===lm.facilityId);
-    const ctrl=f?f.control:-1;
-    el.setAttribute('fill',ctrl===0?'#3f6a85':ctrl===1?'#8a4a3e':'#6b6350');
+  const subs=scenario?.subregions||[];
+  for(let i=0;i<subs.length;i++){
+    const el=miniSubFillEls[i];if(!el)continue;
+    const c=subregionCentroids[i];if(!c)continue;
+    const side=nearestControlledSide(c.x,c.y);
+    el.setAttribute('fill',side===0?'#3f6a85':side===1?'#8a4a3e':'#6b6350');
   }
   const old=miniSvg.querySelector('#miniDyn');if(old)old.remove();
   const g=E('g',{id:'miniDyn'});
@@ -339,22 +354,34 @@ document.getElementById('minimap').addEventListener('click',e=>{
   const r=miniSvg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;
   camera.x=clamp(px*WORLD.w,camera.w/2,WORLD.w-camera.w/2);camera.y=clamp(py*WORLD.h,camera.h/2,WORLD.h-camera.h/2);renderCamera();
 });
-// Fine internal boundaries drawn inside each territory — for the real-coastline scenario these are
-// Taiwan's actual 19 mainland counties/cities (clipped from the Ministry of the Interior's county
-// boundaries), for the fictional battle-line maps they're a lighter decorative subdivision generated
-// the same way the territories themselves were. Either way this is pure detail: ownership, capture,
-// and the front line are still driven entirely by the landmass/facility layer underneath.
-const SUBREGION_TINTS=['#6a89a8','#a8786a','#7a9e7a','#9e8f6a','#8a6a9e','#6a9e97'];
+// The actual ownership canvas — for the real-coastline scenario these cells are Taiwan's 19 mainland
+// counties/cities (clipped from the Ministry of the Interior's county boundaries), for the fictional
+// battle-line maps they're a finer subdivision generated the same way the territories themselves were.
+// Each cell's fill is set live by updateSubregionColors() to whoever controls the nearest facility, so
+// capturing ground anywhere immediately extends the painted border there — see nearestControlledSide().
 function drawSubregions(){
-  (scenario.subregions||[]).forEach((sr,i)=>{
+  subregionFillEls=[];subregionCentroids=[];
+  (scenario.subregions||[]).forEach(sr=>{
     const d=polyPath(sr.poly);
-    svg.append(E('path',{d,fill:SUBREGION_TINTS[i%SUBREGION_TINTS.length],'fill-opacity':'.1'}));
-    svg.append(E('path',{d,fill:'none',stroke:'#e8ddbf','stroke-width':22,opacity:'.42','stroke-dasharray':'70 55','stroke-linejoin':'round'}));
-    if(sr.name){
-      const cx=sr.poly.reduce((s,p)=>s+p[0],0)/sr.poly.length,cy=sr.poly.reduce((s,p)=>s+p[1],0)/sr.poly.length;
-      svg.append(E('text',{x:cx,y:cy,'text-anchor':'middle',fill:'#eef2ee','font-size':118,'font-weight':700,opacity:'.6',style:'paint-order:stroke;stroke:#0b0704;stroke-width:26'},sr.name));
-    }
+    const cx=sr.poly.reduce((s,p)=>s+p[0],0)/sr.poly.length,cy=sr.poly.reduce((s,p)=>s+p[1],0)/sr.poly.length;
+    subregionCentroids.push({x:cx,y:cy});
+    // No stroke, no label: adjoining cells painted the same color must blend into one smooth field
+    // with no visible seam — a seam would read as a fixed block grid, which is exactly what dynamic,
+    // capture-driven ownership is replacing. The polygon only exists as the unit of computation.
+    const fillEl=E('path',{d,fill:'url(#landGradCorridor)'});
+    svg.append(fillEl);
+    subregionFillEls.push(fillEl);
   });
+}
+function updateSubregionColors(){
+  const subs=scenario?.subregions||[];
+  for(let i=0;i<subs.length;i++){
+    const el=subregionFillEls[i];if(!el)continue;
+    const c=subregionCentroids[i];
+    const side=nearestControlledSide(c.x,c.y);
+    el.setAttribute('fill',side===0?'url(#landGradTW)':side===1?'url(#landGradJP)':'url(#landGradCorridor)');
+    el.setAttribute('fill-opacity',side<0?'.62':'.9');
+  }
 }
 // Mirrors the server's ridgeGap() geometry exactly: the ridge is a wall running perpendicular to the
 // front axis, with a passable gap at lm.pass — marched outward from the gap until it leaves the
@@ -383,7 +410,32 @@ function drawRidgeWall(seg){
   svg.append(E('path',{d,fill:'none',stroke:'#5c4a35','stroke-width':170,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.9'}));
   svg.append(E('path',{d,fill:'none',stroke:'#c7ad7c','stroke-width':38,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.6'}));
 }
-function drawPass(p){const g=E('g');g.append(E('path',{d:`M${p.x-630} ${p.y+546} Q${p.x} ${p.y-546} ${p.x+630} ${p.y+546}`,fill:'#8b7662',stroke:'#4e3f35','stroke-width':95}));g.append(E('path',{d:`M${p.x-462} ${p.y+462} Q${p.x} ${p.y-357} ${p.x+462} ${p.y+462}`,fill:'none',stroke:'#d9c58a','stroke-width':147}));g.append(E('text',{x:p.x,y:p.y-630,'text-anchor':'middle',fill:'#f0d780','font-size':160,'font-weight':800},p.name));svg.append(g)}
+// A layered peak (a smaller hazy back summit behind the main one, a light-to-shadow gradient face, a
+// sunlit ridge edge, and snow caps) so the mountain reads as an actual raised landform on the map, not
+// a flat icon — this is literally the gate through the ridge wall drawn by ridgeWallSegments().
+function drawPeak(cx,cy,s){
+  const g=E('g');
+  g.append(E('path',{d:`M${cx-40*s} ${cy+380*s} L${cx+300*s} ${cy-500*s} L${cx+660*s} ${cy+380*s} Z`,fill:'#6b5a48',opacity:'.5'}));
+  g.append(E('path',{d:`M${cx-630*s} ${cy+520*s} L${cx-90*s} ${cy-620*s} L${cx+180*s} ${cy-260*s} L${cx+380*s} ${cy-560*s} L${cx+630*s} ${cy+520*s} Z`,fill:'url(#mountainShade)',stroke:'#382c20','stroke-width':55*s,'stroke-linejoin':'round'}));
+  g.append(E('path',{d:`M${cx-630*s} ${cy+520*s} L${cx-90*s} ${cy-620*s} L${cx+40*s} ${cy-380*s}`,fill:'none',stroke:'#e8d9a8','stroke-width':32*s,opacity:'.65','stroke-linejoin':'round','stroke-linecap':'round'}));
+  g.append(E('path',{d:`M${cx-160*s} ${cy-380*s} L${cx-90*s} ${cy-620*s} L${cx-8*s} ${cy-402*s} L${cx-58*s} ${cy-438*s} Z`,fill:'#eef2f0',opacity:'.85'}));
+  g.append(E('path',{d:`M${cx+298*s} ${cy-330*s} L${cx+380*s} ${cy-560*s} L${cx+436*s} ${cy-352*s} L${cx+388*s} ${cy-380*s} Z`,fill:'#eef2f0',opacity:'.75'}));
+  return g;
+}
+// A pass is drawn as a short mountain RANGE, not one icon: a chain of smaller peaks receding along
+// the ridge line on either side of the gap (same axis as ridgeWallSegments/drawRidgeWall — the wall
+// they visually continue), with the tallest, most detailed peak marking the gap itself.
+function drawPass(p){
+  const axis=scenario?.frontAxis||'x',dx=axis==='x'?0:1,dy=axis==='x'?1:0;
+  const g=E('g',{filter:'url(#soft)'});
+  for(const sign of[-1,1]){
+    g.append(drawPeak(p.x+dx*sign*1900,p.y+dy*sign*1900,.5));
+    g.append(drawPeak(p.x+dx*sign*2600,p.y+dy*sign*2600,.42));
+  }
+  g.append(drawPeak(p.x,p.y,1));
+  g.append(E('text',{x:p.x,y:p.y-700,'text-anchor':'middle',fill:'#f0d780','font-size':160,'font-weight':800,style:'paint-order:stroke;stroke:#241c10;stroke-width:30'},p.name));
+  svg.append(g);
+}
 function drawFacility(layer,f){
   const c=f.control===0?'#5b9bdb':f.control===1?'#e2665a':'#d9bd6e';
   const rad=(f.type==='HQ'?260:f.type==='FACTORY'?170:f.type==='RADAR'?150:f.type==='WATCHTOWER'?130:190)*S;
@@ -530,22 +582,7 @@ function drawFx(){const old=svg.querySelector('#fxLayer');if(old)old.remove();co
     if(fx.damage)g.append(E('text',{x:fx.x2,y:fx.y2-378,'text-anchor':'middle',fill:'#ffe8a3','font-size':151,'font-weight':900,opacity:a},`-${fx.damage}`));
   }
 }svg.append(g)}
-function updateTerritoryColors(){
-  for(const lm of scenario?.landmasses||[]){
-    if(!lm.facilityId)continue;
-    const f=(state.facilities||[]).find(x=>x.id===lm.facilityId);
-    const ctrl=f?f.control:-1;
-    const fillEl=territoryFillEls[lm.id];
-    if(fillEl)fillEl.setAttribute('fill',ctrl===0?'url(#landGradTW)':ctrl===1?'url(#landGradJP)':'url(#landGradCorridor)');
-    const borderEl=territoryBorderEls[lm.id];
-    if(borderEl){
-      borderEl.setAttribute('stroke',ctrl===0?'#8fc4f5':ctrl===1?'#f5988c':'#8a7a52');
-      borderEl.setAttribute('stroke-width',ctrl<0?'90':'140');
-      borderEl.setAttribute('opacity',ctrl<0?'.6':'1');
-    }
-  }
-}
-function updateScene(){updateTerritoryColors();drawAtmosphere();drawFacilities();drawUnits();drawFx();drawMinimapDynamic();}
+function updateScene(){updateSubregionColors();drawAtmosphere();drawFacilities();drawUnits();drawFx();drawMinimapDynamic();}
 function renderSelected(){
   const el=document.getElementById('selected');
   selectedIds=selectedIds.filter(id=>{const q=state.units.find(x=>x.id===id);return q&&q.active;});
