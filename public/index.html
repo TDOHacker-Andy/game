@@ -260,9 +260,14 @@ function buildMap(){
   defs.append(E('linearGradient',{id:'seaGrad',x1:'0',y1:'0',x2:'0',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#0a2b38'}),E('stop',{offset:'1','stop-color':'#061922'}));
   // landGradTW/JP paint a controlled subregion cell; landGradCorridor is both the fixed neutral terrain
   // tone under everything and an uncontrolled cell's color — see drawSubregions/updateSubregionColors.
-  defs.append(E('linearGradient',{id:'landGradTW',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#4f7f9c'}),E('stop',{offset:'1','stop-color':'#294654'}));
-  defs.append(E('linearGradient',{id:'landGradJP',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#9c5749'}),E('stop',{offset:'1','stop-color':'#542c25'}));
-  defs.append(E('linearGradient',{id:'landGradCorridor',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#8f8570'}),E('stop',{offset:'1','stop-color':'#4c473c'}));
+  // gradientUnits is pinned to userSpaceOnUse across the WHOLE world (not the default objectBoundingBox)
+  // so every cell samples the same continuous gradient field instead of computing its own diagonal sweep
+  // across its own bounding box — that per-object default was exactly what made same-colored neighbouring
+  // cells look like separate faceted plates instead of one seamless painted area.
+  const gu={gradientUnits:'userSpaceOnUse',x1:0,y1:0,x2:WORLD.w,y2:WORLD.h};
+  defs.append(E('linearGradient',{id:'landGradTW',...gu}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#4f7f9c'}),E('stop',{offset:'1','stop-color':'#294654'}));
+  defs.append(E('linearGradient',{id:'landGradJP',...gu}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#9c5749'}),E('stop',{offset:'1','stop-color':'#542c25'}));
+  defs.append(E('linearGradient',{id:'landGradCorridor',...gu}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#8f8570'}),E('stop',{offset:'1','stop-color':'#4c473c'}));
   // Diagonal light-to-shadow gradient for the mountain-pass peaks, so the rock face reads as a raised
   // 3D landform (lit from the upper-left) instead of a flat colored triangle.
   defs.append(E('linearGradient',{id:'mountainShade',x1:'0',y1:'0',x2:'1',y2:'1'}));defs.lastChild.append(E('stop',{offset:'0','stop-color':'#a5926e'}),E('stop',{offset:'.5','stop-color':'#7c6a4e'}),E('stop',{offset:'1','stop-color':'#453824'}));
