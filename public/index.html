@@ -489,7 +489,16 @@ function drawFacility(layer,f){
   }
   const g=E('g',{filter:'url(#soft)'});
   const cap0=f.capture?.[0]||0,cap1=f.capture?.[1]||0,cap=Math.max(cap0,cap1);
-  if(cap>0&&cap<100){const cc=cap0>cap1?'#5b9bdb':'#e2665a';const ringR=rad+63,circ=2*Math.PI*ringR;g.append(E('circle',{cx:f.x,cy:f.y,r:ringR,fill:'none',stroke:'#0b1519','stroke-width':42,opacity:'.5'}));g.append(E('circle',{cx:f.x,cy:f.y,r:ringR,fill:'none',stroke:cc,'stroke-width':42,'stroke-dasharray':`${circ*cap/100} ${circ}`,'stroke-linecap':'round',transform:`rotate(-90 ${f.x} ${f.y})`}));g.append(E('text',{x:f.x,y:f.y-rad-97,'text-anchor':'middle',fill:cc,'font-size':143,'font-weight':900},`攻佔中 ${Math.round(cap)}%`));}
+  // Both sides currently have troops on this facility — capture progress is frozen server-side while
+  // that's true (see updateFacilities), so the tug-of-war pulse below takes priority over the ordinary
+  // progress ring/label, which would otherwise misleadingly imply progress is still ticking.
+  const contested=(state.units||[]).some(q=>q.active&&!q.reserve&&q.side===0&&!UNIT[q.kind].naval&&Math.hypot(q.x-f.x,q.y-f.y)<f.r*.62)&&(state.units||[]).some(q=>q.active&&!q.reserve&&q.side===1&&!UNIT[q.kind].naval&&Math.hypot(q.x-f.x,q.y-f.y)<f.r*.62);
+  if(cap>0&&cap<100&&!contested){const cc=cap0>cap1?'#5b9bdb':'#e2665a';const ringR=rad+63,circ=2*Math.PI*ringR;g.append(E('circle',{cx:f.x,cy:f.y,r:ringR,fill:'none',stroke:'#0b1519','stroke-width':42,opacity:'.5'}));g.append(E('circle',{cx:f.x,cy:f.y,r:ringR,fill:'none',stroke:cc,'stroke-width':42,'stroke-dasharray':`${circ*cap/100} ${circ}`,'stroke-linecap':'round',transform:`rotate(-90 ${f.x} ${f.y})`}));g.append(E('text',{x:f.x,y:f.y-rad-97,'text-anchor':'middle',fill:cc,'font-size':143,'font-weight':900},`攻佔中 ${Math.round(cap)}%`));}
+  if(contested){
+    const pulse=.5+.5*Math.sin(Date.now()/220);
+    g.append(E('circle',{cx:f.x,cy:f.y,r:rad+140+pulse*40,fill:'none',stroke:'#ffb347','stroke-width':34+pulse*22,opacity:.35+pulse*.35}));
+    g.append(E('text',{x:f.x,y:f.y-rad-97,'text-anchor':'middle',fill:'#ffb347','font-size':143,'font-weight':900,opacity:.7+pulse*.3},'拉鋸中'));
+  }
   g.append(E('circle',{cx:f.x,cy:f.y,r:rad,fill:'#071015',opacity:'.7',stroke:c,'stroke-width':71}));
   if(f.type==='HQ'||f.type==='FORT'){
     g.append(E('path',{d:`M${f.x-315} ${f.y+273} L${f.x-252} ${f.y-147} L${f.x-147} ${f.y-315} L${f.x} ${f.y-168} L${f.x+147} ${f.y-315} L${f.x+252} ${f.y-147} L${f.x+315} ${f.y+273} Z`,fill:c,opacity:'.75',stroke:'#0b1519','stroke-width':55}));
@@ -545,6 +554,24 @@ function drawAtmosphere(){
 }
 function drawLabels(){(scenario.labels||[]).forEach(l=>svg.append(E('text',{x:l.x,y:l.y,fill:l.color||'rgba(239,245,247,.22)','font-size':l.size||200,'font-weight':900,'text-anchor':'middle','letter-spacing':42},l.text)))}
 function drawUnits(){const old=svg.querySelector('#unitsLayer');if(old)old.remove();const g=E('g',{id:'unitsLayer'});for(const q of state.units||[]){if(!q.active||q.carrier)continue;if(q.side!==side&&!knownEnemy(q))continue;drawUnit(g,q);}svg.append(g);}
+// A glowing trail from each moving unit through its remaining waypoints — the literal marching route,
+// same visual language as the front-line glow (team color, blurred core, animated dashes) so "where is
+// everyone actually headed" reads at a glance instead of only when a unit is selected.
+function drawMovementPaths(){
+  const old=svg.querySelector('#pathLayer');if(old)old.remove();
+  const g=E('g',{id:'pathLayer'});
+  const dashShift=-((Date.now()/18)%140);
+  for(const q of state.units||[]){
+    if(!q.active||q.carrier||!q.path||!q.path.length)continue;
+    if(q.side!==side&&!knownEnemy(q))continue;
+    const pts=[[q.x,q.y],...q.path.map(p=>[p.x,p.y])];
+    const d=pts.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ');
+    const c=q.side===0?'#6ba7dd':'#e5695d';
+    g.append(E('path',{d,fill:'none',stroke:c,'stroke-width':70,opacity:'.32',filter:'url(#frontGlow)'}));
+    g.append(E('path',{d,fill:'none',stroke:c,'stroke-width':17,opacity:'.85','stroke-dasharray':'46 34','stroke-dashoffset':dashShift,'stroke-linecap':'round'}));
+  }
+  svg.append(g);
+}
 function knownEnemy(q){
   const watchers=(state.units||[]).filter(a=>a.active&&a.side===side);
   if(watchers.some(a=>Math.hypot(a.x-q.x,a.y-q.y)<=a.vision*((state.dayPhase==='NIGHT')?.72:1)))return true;
@@ -591,7 +618,7 @@ function drawUnit(g,q){
     gg.append(sg);
   }
   if(q.side===0){gg.append(E('circle',{cx:-193,cy:-84,r:42,fill:'none',stroke:'#eaf6ff','stroke-width':19}));}else{gg.append(E('circle',{cx:-193,cy:-84,r:36,fill:'#ffe1c8'}));}
-  const hp=clamp(q.personnel/Math.max(1,q.maxPersonnel),0,1);gg.append(E('rect',{x:-221,y:-378,width:441,height:50,rx:21,fill:'#081014',stroke:'#0b1519','stroke-width':17}));gg.append(E('rect',{x:-206,y:-363,width:412*hp,height:21,rx:11,fill:hp>.6?'#5ed08f':hp>.3?'#e3c761':'#ff5d60'}));gg.append(E('text',{x:0,y:305,'text-anchor':'middle',fill:'#f5f7f8','font-size':134,'font-weight':900,style:'paint-order:stroke;stroke:#091216;stroke-width:29'},`#${q.id}`));
+  const hp=clamp(q.personnel/Math.max(1,q.maxPersonnel),0,1);gg.append(E('rect',{x:-221,y:-378,width:441,height:50,rx:21,fill:'#081014',stroke:'#0b1519','stroke-width':17}));gg.append(E('rect',{x:-206,y:-363,width:412*hp,height:21,rx:11,fill:hp>.6?'#5ed08f':hp>.3?'#e3c761':'#ff5d60'}));gg.append(E('text',{x:0,y:305,'text-anchor':'middle',fill:'#f5f7f8','font-size':134,'font-weight':900,style:'paint-order:stroke;stroke:#091216;stroke-width:29'},`#${q.id}・${Math.round(q.personnel)}`));
   // Veteran chevrons — a quiet, earned reward for units that rack up kills instead of just a kill counter.
   const kills=q.kills||0;
   if(kills>=3){
@@ -622,7 +649,7 @@ function drawFx(){const old=svg.querySelector('#fxLayer');if(old)old.remove();co
     if(fx.damage)g.append(E('text',{x:fx.x2,y:fx.y2-378,'text-anchor':'middle',fill:'#ffe8a3','font-size':151,'font-weight':900,opacity:a},`-${fx.damage}`));
   }
 }svg.append(g)}
-function updateScene(){updateSubregionColors();drawAtmosphere();drawFacilities();drawUnits();drawFx();drawMinimapDynamic();}
+function updateScene(){updateSubregionColors();drawAtmosphere();drawMovementPaths();drawFacilities();drawUnits();drawFx();drawMinimapDynamic();}
 function renderSelected(){
   const el=document.getElementById('selected');
   selectedIds=selectedIds.filter(id=>{const q=state.units.find(x=>x.id===id);return q&&q.active;});
