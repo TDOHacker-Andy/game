@@ -58,7 +58,17 @@ button{font:inherit;color:inherit;cursor:pointer;border:1px solid #5c4530;backgr
 .lobbyJoinRow button{background:#3a2b18;border-color:#7a5a35;font-weight:900}
 .lobbyCode{font-size:38px;font-weight:900;letter-spacing:.12em;color:var(--gold);margin:14px 0;padding:14px;background:#241a10;border:1px solid #7a5a35;border-radius:14px;cursor:pointer}
 .lobbyWaitNote{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:18px}
-@media(max-width:900px){.prepPanel{grid-template-columns:1fr;height:92vh}.prepRight{border-left:0;border-top:1px solid #4a3620}.score{min-width:0}.score .tiny{display:none}.hudTop .hideSmall{display:none}.controls button{min-width:62px;padding:8px 9px}}
+@media(max-width:900px){
+.hudTop{flex-wrap:wrap;top:10px;left:10px;right:10px}.hudBlock{padding:7px 10px}.title{font-size:14px}.score{min-width:0;order:3;flex:1 1 100%}.score .tiny{display:none}.hudTop .hideSmall{display:none}
+.prepPanel{grid-template-columns:1fr;top:132px;left:10px;right:10px;bottom:10px;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:10px}
+.prepLeft,.prepCenter,.prepRight{flex:none}.prepLeft{overflow:visible;padding:14px}.prepCenter{padding:0}.prepRight{border-left:0;border-top:1px solid #4a3620;padding-bottom:210px}
+.counterDiagram svg{width:150px}.prepCenterHint{font-size:13px}
+#minimap{width:120px;height:74px;bottom:66px;right:10px}#minimap .miniLabel{display:none}
+#zoom{right:10px;bottom:10px}.zoomBtn{width:38px;height:38px;font-size:17px}.zoomBtn.fit{width:56px;font-size:11px}
+#selected{left:10px;bottom:10px;width:min(300px,calc(100vw - 20px))}
+#battle .controls{left:10px;right:140px;transform:none;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;-webkit-overflow-scrolling:touch}.controls button{min-width:58px;padding:8px 9px;flex:0 0 auto}
+#battleBuy{left:10px;right:10px;transform:none;width:auto;bottom:70px}
+}
 </style>
 </head>
 <body>
@@ -113,7 +123,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:1px solid #5c4530;backgr
     </div>
     <div class="prepRight">
       <div><div style="font-size:18px;font-weight:900">開戰前檢查</div>
-        <div class="note" style="margin-top:12px">① 已購買部隊會立即出現在地圖。<br>② 點擊或拖曳部署到自己的領土。<br>③ 不需要任何編組面板；進入戰鬥後完全自己操控。<br>④ 戰鬥開始後建軍 UI 消失，只留下地圖與必要 HUD。<br>⑤ 觸控板：單指拖曳平移；點己方部隊選取（即使已選別的部隊也一定能切換）；點地面下令；Shift＋拖曳框選；空白鍵取消選取。<br>⑥ 據點可以「駐留佔領」（部隊在旁不受阻擋地停留）或「砲擊攻陷」（打光血量直接易主）拿下，任選其一。<br>⑦ 兵種克制：穿甲需≥目標裝甲才會造成完整傷害，否則大幅減傷——反裝甲部隊穿甲最高、是戰車剋星；一般步兵穿甲低，難以打穿裝甲目標，建議跟戰車／反裝甲混編出擊。<br>⑧ 地形：森林（深綠樹叢）會讓部隊更難被遠距離發現；丘陵／山隘（土黃色高地，圖上會有山峰標記）移動變慢，但駐守的部隊會大幅減少受到的傷害——控制山隘要塞是打防守戰的關鍵。</div>
+        <div class="note" style="margin-top:12px">① 已購買部隊會立即出現在地圖。<br>② 點擊或拖曳部署到自己的領土。<br>③ 不需要任何編組面板；進入戰鬥後完全自己操控。<br>④ 戰鬥開始後建軍 UI 消失，只留下地圖與必要 HUD。<br>⑤ 觸控板：單指拖曳平移；點己方部隊選取（即使已選別的部隊也一定能切換）；點地面下令；Shift＋拖曳框選；空白鍵取消選取。<br>⑥ 據點可以「駐留佔領」（部隊在旁不受阻擋地停留）或「砲擊攻陷」（打光血量直接易主）拿下，任選其一。<br>⑦ 兵種克制：穿甲需≥目標裝甲才會造成完整傷害，否則大幅減傷——反裝甲部隊穿甲最高、是戰車剋星；一般步兵穿甲低，難以打穿裝甲目標，建議跟戰車／反裝甲混編出擊。<br>⑧ 地形：森林（深綠樹叢）會讓部隊更難被遠距離發現；丘陵移動變慢；山隘（山峰＋兩側鋸齒山壁）是真正無法直接穿越的地形，部隊會自動改道走山峰缺口，且駐守缺口的部隊會大幅減少受到的傷害——控制山隘缺口是卡住敵軍行軍路線、打防守戰的關鍵。</div>
       </div>
       <button class="readyBtn" id="ready">✓ 準備開始</button>
     </div>
@@ -281,6 +291,7 @@ function buildMap(){
   // Auto-generated coastal roads linking each side's own facilities, plus dashed trade routes through corridors.
   autoRoads().forEach(p=>{const d=p.map((a,j)=>(j?'L':'M')+a[0]+' '+a[1]).join(' ');svg.append(E('path',{d,fill:'none',stroke:'#1b241f','stroke-width':315,opacity:'.55','stroke-linecap':'round'}));svg.append(E('path',{d,fill:'none',stroke:'#c0ab7c','stroke-width':97,opacity:'.85','stroke-linecap':'round','stroke-dasharray':'252 38'}));});
   (scenario.corridors||[]).forEach(c=>{const p=[[c.a.x,c.a.y],[c.pass.x,c.pass.y],[c.b.x,c.b.y]];const d=p.map((a,j)=>(j?'L':'M')+a[0]+' '+a[1]).join(' ');svg.append(E('path',{d,fill:'none',stroke:'#1b241f','stroke-width':200,opacity:'.55','stroke-linecap':'round'}));svg.append(E('path',{d,fill:'none',stroke:'#e2c987','stroke-width':70,opacity:'.85','stroke-linecap':'round','stroke-dasharray':'160 60'}));});
+  (scenario.landmasses||[]).filter(lm=>lm.kind==='neutral'&&lm.pass).forEach(lm=>ridgeWallSegments(lm).forEach(drawRidgeWall));
   (scenario.passes||[]).forEach(p=>drawPass(p));
   // A crisp border traced on top of every territory, same color as its fill (a shade richer) so the edge
   // between two differently-owned territories reads as a clear frontier, not just where two flat colors
@@ -344,6 +355,33 @@ function drawSubregions(){
       svg.append(E('text',{x:cx,y:cy,'text-anchor':'middle',fill:'#eef2ee','font-size':118,'font-weight':700,opacity:'.6',style:'paint-order:stroke;stroke:#0b0704;stroke-width:26'},sr.name));
     }
   });
+}
+// Mirrors the server's ridgeGap() geometry exactly: the ridge is a wall running perpendicular to the
+// front axis, with a passable gap at lm.pass — marched outward from the gap until it leaves the
+// territory's own polygon, so the drawn wall always matches what's actually blocking movement.
+function ridgeWallSegments(lm){
+  const axis=scenario?.frontAxis||'x',coord=axis==='x'?'x':'y';
+  const dx=coord==='x'?0:1,dy=coord==='x'?1:0;
+  const gap=1300,segs=[];
+  for(const sign of[-1,1]){
+    let last=null;
+    for(let d=gap;d<20000;d+=250){
+      const px=lm.pass.x+dx*sign*d,py=lm.pass.y+dy*sign*d;
+      if(!pointInPoly(px,py,lm.poly))break;
+      last={x:px,y:py};
+    }
+    if(last)segs.push([{x:lm.pass.x+dx*sign*gap,y:lm.pass.y+dy*sign*gap},last]);
+  }
+  return segs;
+}
+function drawRidgeWall(seg){
+  const [a,b]=seg,dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)||1,nx=-dy/len,ny=dx/len;
+  const steps=Math.max(3,Math.round(len/900));
+  let d=`M${a.x} ${a.y}`;
+  for(let i=1;i<=steps;i++){const t=i/steps,jag=(i%2===0?1:-1)*230;d+=` L${a.x+dx*t+nx*jag} ${a.y+dy*t+ny*jag}`;}
+  svg.append(E('path',{d,fill:'none',stroke:'#241c14','stroke-width':230,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.55',filter:'url(#soft)'}));
+  svg.append(E('path',{d,fill:'none',stroke:'#5c4a35','stroke-width':170,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.9'}));
+  svg.append(E('path',{d,fill:'none',stroke:'#c7ad7c','stroke-width':38,'stroke-linecap':'round','stroke-linejoin':'round',opacity:'.6'}));
 }
 function drawPass(p){const g=E('g');g.append(E('path',{d:`M${p.x-630} ${p.y+546} Q${p.x} ${p.y-546} ${p.x+630} ${p.y+546}`,fill:'#8b7662',stroke:'#4e3f35','stroke-width':95}));g.append(E('path',{d:`M${p.x-462} ${p.y+462} Q${p.x} ${p.y-357} ${p.x+462} ${p.y+462}`,fill:'none',stroke:'#d9c58a','stroke-width':147}));g.append(E('text',{x:p.x,y:p.y-630,'text-anchor':'middle',fill:'#f0d780','font-size':160,'font-weight':800},p.name));svg.append(g)}
 function drawFacility(layer,f){
@@ -666,9 +704,33 @@ document.getElementById('surrenderBtn').onclick=()=>{
   if(!surrenderArmed){surrenderArmed=true;b.classList.add('armed');b.textContent='確定投降？再按一次';toast('再點一次「投降」按鈕即可確認','error');clearTimeout(surrenderTimer);surrenderTimer=setTimeout(()=>{surrenderArmed=false;b.classList.remove('armed');b.textContent='投降';},4000);return;}
   clearTimeout(surrenderTimer);surrenderArmed=false;b.classList.remove('armed');b.textContent='投降';send({t:'surrender'});
 };
-svg.addEventListener('pointerdown',e=>{svg.setPointerCapture(e.pointerId);const p=pointerWorld(e);drag={sx:e.clientX,sy:e.clientY,cx:camera.x,cy:camera.y,wx:p.x,wy:p.y,moved:false,shift:e.shiftKey};});
-svg.addEventListener('pointermove',e=>{if(!drag)return;drag.shift=drag.shift||e.shiftKey;const dx=(e.clientX-drag.sx)/svg.clientWidth*camera.w,dy=(e.clientY-drag.sy)/svg.clientHeight*camera.h;if(Math.hypot(dx,dy)>8)drag.moved=true;if(drag.moved&&drag.shift){const r=svg.getBoundingClientRect();const bx1=Math.min(drag.sx,e.clientX)-r.left,by1=Math.min(drag.sy,e.clientY)-r.top,bx2=Math.max(drag.sx,e.clientX)-r.left,by2=Math.max(drag.sy,e.clientY)-r.top;const box=document.getElementById('selectBox');box.style.left=bx1+'px';box.style.top=by1+'px';box.style.width=(bx2-bx1)+'px';box.style.height=(by2-by1)+'px';box.classList.remove('hidden');return}if(drag.moved){camera.x=clamp(drag.cx-dx,camera.w/2,WORLD.w-camera.w/2);camera.y=clamp(drag.cy-dy,camera.h/2,WORLD.h-camera.h/2);renderCamera();}});
-svg.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;d.shift=d.shift||e.shiftKey;drag=null;document.getElementById('selectBox').classList.add('hidden');const p=pointerWorld(e);if(d.moved&&d.shift){const x1=Math.min(d.wx,p.x),y1=Math.min(d.wy,p.y),x2=Math.max(d.wx,p.x),y2=Math.max(d.wy,p.y);const ids=(state.units||[]).filter(q=>q.side===side&&q.active&&!q.carrier&&q.x>=x1&&q.x<=x2&&q.y>=y1&&q.y<=y2).map(q=>q.id);selectedIds=ids;renderSelected();toast(ids.length>1?`已框選 ${ids.length} 支部隊`:ids.length===1?'已選取部隊':'框選範圍內沒有部隊');return}if(d.moved)return;
+// Two-finger pinch-to-zoom/pan for mobile — tracked separately from the single-pointer drag/select
+// logic below so a second touch landing mid-drag cleanly takes over instead of fighting it.
+let activePointers=new Map(),pinch=null;
+function pinchDist(){const p=[...activePointers.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)||1;}
+function pinchMid(){const p=[...activePointers.values()];return{x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2};}
+svg.addEventListener('pointerdown',e=>{
+  svg.setPointerCapture(e.pointerId);
+  activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(activePointers.size===2){drag=null;pinch={dist:pinchDist(),mid:pinchMid(),camW:camera.w,camH:camera.h,camX:camera.x,camY:camera.y};return;}
+  if(activePointers.size>2)return;
+  const p=pointerWorld(e);drag={sx:e.clientX,sy:e.clientY,cx:camera.x,cy:camera.y,wx:p.x,wy:p.y,moved:false,shift:e.shiftKey};});
+svg.addEventListener('pointermove',e=>{
+  if(activePointers.has(e.pointerId))activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch&&activePointers.size===2){
+    const nd=pinchDist(),nm=pinchMid(),f=clamp(pinch.dist/nd,.2,5);
+    const minW=WORLD.w*.042,minH=WORLD.h*.027;
+    camera.w=clamp(pinch.camW*f,minW,WORLD.w);camera.h=clamp(pinch.camH*f,minH,WORLD.h);
+    const r=svg.getBoundingClientRect();
+    const dxMid=(nm.x-pinch.mid.x)/r.width*camera.w,dyMid=(nm.y-pinch.mid.y)/r.height*camera.h;
+    camera.x=clamp(pinch.camX-dxMid,camera.w/2,WORLD.w-camera.w/2);camera.y=clamp(pinch.camY-dyMid,camera.h/2,WORLD.h-camera.h/2);
+    renderCamera();return;
+  }
+  if(!drag)return;drag.shift=drag.shift||e.shiftKey;const dx=(e.clientX-drag.sx)/svg.clientWidth*camera.w,dy=(e.clientY-drag.sy)/svg.clientHeight*camera.h;if(Math.hypot(dx,dy)>8)drag.moved=true;if(drag.moved&&drag.shift){const r=svg.getBoundingClientRect();const bx1=Math.min(drag.sx,e.clientX)-r.left,by1=Math.min(drag.sy,e.clientY)-r.top,bx2=Math.max(drag.sx,e.clientX)-r.left,by2=Math.max(drag.sy,e.clientY)-r.top;const box=document.getElementById('selectBox');box.style.left=bx1+'px';box.style.top=by1+'px';box.style.width=(bx2-bx1)+'px';box.style.height=(by2-by1)+'px';box.classList.remove('hidden');return}if(drag.moved){camera.x=clamp(drag.cx-dx,camera.w/2,WORLD.w-camera.w/2);camera.y=clamp(drag.cy-dy,camera.h/2,WORLD.h-camera.h/2);renderCamera();}});
+svg.addEventListener('pointerup',e=>{
+  activePointers.delete(e.pointerId);
+  if(pinch){if(activePointers.size<2)pinch=null;return;}
+  if(!drag)return;const d=drag;d.shift=d.shift||e.shiftKey;drag=null;document.getElementById('selectBox').classList.add('hidden');const p=pointerWorld(e);if(d.moved&&d.shift){const x1=Math.min(d.wx,p.x),y1=Math.min(d.wy,p.y),x2=Math.max(d.wx,p.x),y2=Math.max(d.wy,p.y);const ids=(state.units||[]).filter(q=>q.side===side&&q.active&&!q.carrier&&q.x>=x1&&q.x<=x2&&q.y>=y1&&q.y<=y2).map(q=>q.id);selectedIds=ids;renderSelected();toast(ids.length>1?`已框選 ${ids.length} 支部隊`:ids.length===1?'已選取部隊':'框選範圍內沒有部隊');return}if(d.moved)return;
   // A precise click directly on one of your own units always (re)selects it — this has to win over
   // "issue a command" so you can switch selection to e.g. a ship while land units are selected, without
   // hunting for empty ground first. The radius is kept tight (well under the ~480 spacing new recruits
@@ -695,6 +757,7 @@ svg.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;d.shift=d.shif
   selectedIds.forEach((id,i)=>{const o=formationOffset(i);send({t:'command',id,x:p.x+o.x,y:p.y+o.y});});
   toast(selectedIds.length>1?`${selectedIds.length} 支部隊已下令移動（跨海將自動徵用運輸艦，否則改走陸路走廊）`:'移動命令已下達（跨海將自動徵用運輸艦，否則改走陸路走廊）');
 });
+svg.addEventListener('pointercancel',e=>{activePointers.delete(e.pointerId);if(activePointers.size<2)pinch=null;drag=null;});
 window.addEventListener('keydown',e=>{
   if(['INPUT','TEXTAREA'].includes(document.activeElement?.tagName))return;
   if(e.key==='r'||e.key==='R')fitAll();

@@ -158,6 +158,25 @@ function nearestCorridorRoute(sx,sy,tx,ty){
   }
   return best;
 }
+// A mountain-pass territory isn't just slow — it's a real ridge wall with a single gap at lm.pass.
+// The wall runs perpendicular to the scenario's front axis (the direction both sides actually advance
+// along), so a straight order that would cut across the ridge away from the gap gets redirected
+// through the gap instead. This is what makes a pass a genuine route decision instead of a speed tax.
+const GAP_RADIUS = 1300;
+function passLandmasses(){
+  return CURRENT._passLandmasses || (CURRENT._passLandmasses = CURRENT.landmasses.filter(l=>l.kind==='neutral'&&l.pass));
+}
+function ridgeGap(lm,sx,sy,tx,ty){
+  const coord=(CURRENT.frontAxis||'x')==='x'?'x':'y', other=coord==='x'?'y':'x';
+  const passC=lm.pass[coord], sC=coord==='x'?sx:sy, tC=coord==='x'?tx:ty;
+  if((sC-passC)*(tC-passC)>=0)return null; // both endpoints on the same side of the ridge line
+  const t=(passC-sC)/(tC-sC);
+  const crossOther=(coord==='x'?sy:sx)+((coord==='x'?ty-sy:tx-sx))*t;
+  if(Math.abs(crossOther-lm.pass[other])<=GAP_RADIUS)return null; // crosses through the gap, no detour needed
+  const crossX=coord==='x'?passC:crossOther, crossY=coord==='x'?crossOther:passC;
+  if(!pointInPoly(crossX,crossY,lm.poly))return null; // the ridge only exists inside this territory's own shape
+  return lm.pass;
+}
 function buildPath(q,tx,ty){
   const pts=[]; const naval=UNIT[q.kind].naval;
   if(naval){pts.push({x:tx,y:ty,kind:'target'});return pts;}
@@ -174,9 +193,11 @@ function buildPath(q,tx,ty){
         pts.push({x:route.exit.x,y:route.exit.y,kind:'corridor'});
       }
     }
-  } else if(terrainAt(tx,ty)==='mountain' || terrainAt(sx,sy)==='mountain'){
-    const pass=CURRENT.passes.slice().sort((a,b)=>Math.hypot(a.x-sx,a.y-sy)+Math.hypot(a.x-tx,a.y-ty)-Math.hypot(b.x-sx,b.y-sy)-Math.hypot(b.x-tx,b.y-ty))[0];
-    if(pass && Math.hypot(pass.x-sx,pass.y-sy)+Math.hypot(pass.x-tx,pass.y-ty)<Math.hypot(tx-sx,ty-sy)*1.55)pts.push({x:pass.x,y:pass.y,kind:'pass'});
+  } else {
+    for(const lm of passLandmasses()){
+      const gap=ridgeGap(lm,sx,sy,tx,ty);
+      if(gap){pts.push({x:gap.x,y:gap.y,kind:'pass'});break;}
+    }
   }
   pts.push({x:tx,y:ty,kind:'target'});return pts;
 }
