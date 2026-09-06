@@ -180,6 +180,7 @@ let scenario=null,scenarioList=[];
 // the nearest facility, recomputed live every snapshot, so the border is exactly "how far you've
 // actually fought and captured" rather than a whole territory flipping the instant one facility falls.
 let subregionFillEls=[],subregionGlowEls=[],subregionCentroids=[],subregionNeighbors=[],miniSubFillEls=[];
+let subregionPressure=[],resolvedSides=[];
 let state={phase:'LOBBY',units:[],facilities:[],events:[],budget:[30000,30000],losses:[0,0],time:0,front:0};let side=0,ws=null,selectedIds=[],commandMode='MOVE';let camera={x:WORLD.w/2,y:WORLD.h/2,w:WORLD.w,h:WORLD.h};let drag=null;let shiftDrag=null;let toastTimer=null;
 function formationOffset(i){const gx=(i%3)-1,gy=Math.floor(i/3)-1;return{x:gx*170*S,y:gy*170*S};}
 const svg=document.getElementById('map');
@@ -209,6 +210,21 @@ function nearestControlledSide(cx,cy){
     if(d<bestD){bestD=d;best=f;}
   }
   return best?best.control:-1;
+}
+// Net nearby troop weight (positive = blue, negative = red), falling off linearly with distance — this
+// is what makes the front line a real tug-of-war instead of a line that only moves when a facility
+// finishes capturing: mass enough force against a stretch of border and it visibly bulges your way,
+// pull back and it recedes, all before (or even without) actually taking the facility behind it.
+function localPressure(cx,cy,radius){
+  let net=0;
+  for(const q of state.units||[]){
+    if(!q.active||q.reserve||q.carrier||UNIT[q.kind].naval)continue;
+    const d=Math.hypot(q.x-cx,q.y-cy);
+    if(d>=radius)continue;
+    const w=q.personnel*(1-d/radius);
+    net+=q.side===0?w:-w;
+  }
+  return net;
 }
 // Mirrors the server's terrainAt() exactly (same formulas, same precedence) purely so the map can show
 // the player the terrain that's actually shaping movement speed, defense, and concealment — a mountain
@@ -356,8 +372,7 @@ function drawMinimapDynamic(){
   const subs=scenario?.subregions||[];
   for(let i=0;i<subs.length;i++){
     const el=miniSubFillEls[i];if(!el)continue;
-    const c=subregionCentroids[i];if(!c)continue;
-    const side=nearestControlledSide(c.x,c.y);
+    const side=resolvedSides[i]??-1;
     el.setAttribute('fill',side===0?'#3f6a85':side===1?'#8a4a3e':'#6b6350');
   }
   const old=miniSvg.querySelector('#miniDyn');if(old)old.remove();
@@ -378,7 +393,7 @@ document.getElementById('minimap').addEventListener('click',e=>{
 // Each cell's fill is set live by updateSubregionColors() to whoever controls the nearest facility, so
 // capturing ground anywhere immediately extends the painted border there — see nearestControlledSide().
 function drawSubregions(){
-  subregionFillEls=[];subregionGlowEls=[];subregionCentroids=[];
+  subregionFillEls=[];subregionGlowEls=[];subregionCentroids=[];subregionPressure=[];resolvedSides=[];
   (scenario.subregions||[]).forEach(sr=>{
     const d=polyPath(sr.poly);
     const cx=sr.poly.reduce((s,p)=>s+p[0],0)/sr.poly.length,cy=sr.poly.reduce((s,p)=>s+p[1],0)/sr.poly.length;
@@ -408,17 +423,34 @@ function buildSubregionNeighbors(){
     return dists.slice(0,6).map(x=>x.j);
   });
 }
+// PRESSURE_RADIUS: how far a unit's presence is felt. NEUTRAL_PUSH/OWNED_PUSH: how much net troop
+// weight it takes to visually claim open ground / shove back the actual facility-holder's color —
+// OWNED_PUSH is deliberately higher, so a real facility still anchors its own territory against a
+// token raiding party. This is a purely visual front line: the facility capture rules underneath
+// (occupation ring / bombardment) are completely unchanged — this can push color around ahead of an
+// actual capture, or contest it without one, exactly like real momentum on a battlefield.
+const PRESSURE_RADIUS=5000,NEUTRAL_PUSH=280,OWNED_PUSH=620;
 function updateSubregionColors(){
   const subs=scenario?.subregions||[];
-  const sides=subregionCentroids.map(c=>nearestControlledSide(c.x,c.y));
+  const facSides=subregionCentroids.map(c=>nearestControlledSide(c.x,c.y));
+  resolvedSides=subs.map((sr,i)=>{
+    const c=subregionCentroids[i];
+    const raw=localPressure(c.x,c.y,PRESSURE_RADIUS);
+    subregionPressure[i]=(subregionPressure[i]||0)*.8+raw*.2;
+    const p=subregionPressure[i],facSide=facSides[i];
+    if(facSide<0)return p>NEUTRAL_PUSH?0:p<-NEUTRAL_PUSH?1:-1;
+    if(facSide===0&&p<-OWNED_PUSH)return 1;
+    if(facSide===1&&p>OWNED_PUSH)return 0;
+    return facSide;
+  });
   for(let i=0;i<subs.length;i++){
     const el=subregionFillEls[i];if(!el)continue;
-    const side=sides[i];
+    const side=resolvedSides[i];
     el.setAttribute('fill',side===0?'url(#landGradTW)':side===1?'url(#landGradJP)':'url(#landGradCorridor)');
     el.setAttribute('fill-opacity',side<0?'.62':'.9');
     const glowEl=subregionGlowEls[i];
     if(!glowEl)continue;
-    const isFront=side>=0&&(subregionNeighbors[i]||[]).some(j=>sides[j]!==side);
+    const isFront=side>=0&&(subregionNeighbors[i]||[]).some(j=>resolvedSides[j]!==side);
     glowEl.setAttribute('stroke',isFront?(side===0?'#8fd0ff':'#ff9a86'):'none');
     glowEl.setAttribute('opacity',isFront?'.85':'0');
   }
