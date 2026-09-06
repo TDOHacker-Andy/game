@@ -262,6 +262,7 @@ function buildMap(){
     svg.append(E('path',{d,fill:'url(#grid)'}));
     if(!lm.facilityId)svg.append(E('path',{d,fill:'none',stroke:'#d4b97c','stroke-width':105,opacity:'.35'}));
   });
+  drawSubregions();
   // Forest and hill dressing sampled from the *actual* terrain formula (terrainKindAt), so what the
   // player sees on the map is exactly the terrain that's slowing their units, hiding them, or (on a
   // mountain pass) shielding them — not unrelated decoration scattered on top.
@@ -327,6 +328,23 @@ document.getElementById('minimap').addEventListener('click',e=>{
   const r=miniSvg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;
   camera.x=clamp(px*WORLD.w,camera.w/2,WORLD.w-camera.w/2);camera.y=clamp(py*WORLD.h,camera.h/2,WORLD.h-camera.h/2);renderCamera();
 });
+// Fine internal boundaries drawn inside each territory — for the real-coastline scenario these are
+// Taiwan's actual 19 mainland counties/cities (clipped from the Ministry of the Interior's county
+// boundaries), for the fictional battle-line maps they're a lighter decorative subdivision generated
+// the same way the territories themselves were. Either way this is pure detail: ownership, capture,
+// and the front line are still driven entirely by the landmass/facility layer underneath.
+const SUBREGION_TINTS=['#6a89a8','#a8786a','#7a9e7a','#9e8f6a','#8a6a9e','#6a9e97'];
+function drawSubregions(){
+  (scenario.subregions||[]).forEach((sr,i)=>{
+    const d=polyPath(sr.poly);
+    svg.append(E('path',{d,fill:SUBREGION_TINTS[i%SUBREGION_TINTS.length],'fill-opacity':'.1'}));
+    svg.append(E('path',{d,fill:'none',stroke:'#e8ddbf','stroke-width':22,opacity:'.42','stroke-dasharray':'70 55','stroke-linejoin':'round'}));
+    if(sr.name){
+      const cx=sr.poly.reduce((s,p)=>s+p[0],0)/sr.poly.length,cy=sr.poly.reduce((s,p)=>s+p[1],0)/sr.poly.length;
+      svg.append(E('text',{x:cx,y:cy,'text-anchor':'middle',fill:'#eef2ee','font-size':118,'font-weight':700,opacity:'.6',style:'paint-order:stroke;stroke:#0b0704;stroke-width:26'},sr.name));
+    }
+  });
+}
 function drawPass(p){const g=E('g');g.append(E('path',{d:`M${p.x-630} ${p.y+546} Q${p.x} ${p.y-546} ${p.x+630} ${p.y+546}`,fill:'#8b7662',stroke:'#4e3f35','stroke-width':95}));g.append(E('path',{d:`M${p.x-462} ${p.y+462} Q${p.x} ${p.y-357} ${p.x+462} ${p.y+462}`,fill:'none',stroke:'#d9c58a','stroke-width':147}));g.append(E('text',{x:p.x,y:p.y-630,'text-anchor':'middle',fill:'#f0d780','font-size':160,'font-weight':800},p.name));svg.append(g)}
 function drawFacility(layer,f){
   const c=f.control===0?'#5b9bdb':f.control===1?'#e2665a':'#d9bd6e';

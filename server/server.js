@@ -278,7 +278,7 @@ function scenarioMeta(){
     id:CURRENT.id,name:CURRENT.name,mode:CURRENT.mode,hasNavy:CURRENT.hasNavy,
     world:CURRENT.world,
     landmasses:CURRENT.landmasses.map(l=>({id:l.id,kind:l.kind,side:l.side??null,poly:l.poly,pass:l.pass||null,facilityId:l.facilityId||null})),
-    corridors:CURRENT.corridors,passes:CURRENT.passes,terrain:CURRENT.terrain||null,
+    corridors:CURRENT.corridors,passes:CURRENT.passes,terrain:CURRENT.terrain||null,subregions:CURRENT.subregions||[],
     facilities:CURRENT.facilities.map(f=>({id:f.id,name:f.name,type:f.type,x:f.x,y:f.y,side:f.side})),
     homePoints:CURRENT.homePoints,
     sides:CURRENT.sides,labels:CURRENT.labels||[],
